@@ -40,11 +40,13 @@ public class LittleJILStepsTable implements Serializable {
     }
 
     public Step getStep(Task task) {
-        return ((Entry) table.get(task)).getStep();
+        Entry entry = (Entry) table.get(task);
+        return (entry != null ? entry.getStep() : null);
     }
 
     public Collection getParameterBindings(Task task) {
-        return ((Entry) table.get(task)).getParameterBindings();
+        Entry entry = (Entry) table.get(task);
+        return (entry != null ? entry.getParameterBindings() : null);
     }
 
     /*public Task getTask(Step step) {
