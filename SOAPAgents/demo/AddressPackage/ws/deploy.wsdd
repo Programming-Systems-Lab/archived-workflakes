@@ -1,0 +1,69 @@
+<!-- Use this file to deploy some handlers/chains and services      -->
+<!-- Two ways to do this:                                           -->
+<!--   java org.apache.axis.client.AdminClient deploy.wsdd          -->
+<!--      after the axis server is running                          -->
+<!-- or                                                             -->
+<!--   java org.apache.axis.utils.Admin client|server deploy.wsdd   -->
+<!--      from the same directory that the Axis engine runs         -->
+
+<deployment
+    xmlns="http://xml.apache.org/axis/wsdd/"
+    xmlns:java="http://xml.apache.org/axis/wsdd/providers/java">
+
+  <!-- Services from AddressBookService WSDL service -->
+
+  <service name="AddressBook" provider="java:RPC">
+      <parameter name="wsdlTargetNamespace" value="urn:AddressFetcher"/>
+      <parameter name="wsdlServiceElement" value="AddressBookService"/>
+      <parameter name="wsdlServicePort" value="AddressBook"/>
+      <parameter name="className" value="AddressPackage.ws.AddressBookSoapBindingImpl"/>
+      <parameter name="wsdlPortType" value="AddressBook"/>
+      <operation name="addEntry" qname="operNS:addEntry" xmlns:operNS="urn:AddressFetcher" returnQName="addEntryReturn" returnType="rtns:string" xmlns:rtns="http://www.w3.org/2001/XMLSchema" >
+        <parameter name="in0" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+        <parameter name="in1" type="tns:Address" xmlns:tns="urn:AddressFetcher"/>
+      </operation>
+      <operation name="getAddressFromName" qname="operNS:getAddressFromName" xmlns:operNS="urn:AddressFetcher" returnQName="getAddressFromNameReturn" returnType="rtns:Address" xmlns:rtns="urn:AddressFetcher" >
+        <parameter name="in0" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+      </operation>
+      <operation name="getAllListings" qname="operNS:getAllListings" xmlns:operNS="urn:AddressFetcher" returnQName="getAllListingsReturn" returnType="rtns:Vector" xmlns:rtns="http://xml.apache.org/xml-soap" >
+      </operation>
+      <operation name="editName" qname="operNS:editName" xmlns:operNS="urn:AddressFetcher" returnQName="editNameReturn" returnType="rtns:string" xmlns:rtns="http://www.w3.org/2001/XMLSchema" >
+        <parameter name="in0" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+        <parameter name="in1" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+      </operation>
+      <operation name="editAddress" qname="operNS:editAddress" xmlns:operNS="urn:AddressFetcher" returnQName="editAddressReturn" returnType="rtns:string" xmlns:rtns="http://www.w3.org/2001/XMLSchema" >
+        <parameter name="in0" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+        <parameter name="in1" type="tns:Address" xmlns:tns="urn:AddressFetcher"/>
+      </operation>
+      <operation name="editPhone" qname="operNS:editPhone" xmlns:operNS="urn:AddressFetcher" returnQName="editPhoneReturn" returnType="rtns:string" xmlns:rtns="http://www.w3.org/2001/XMLSchema" >
+        <parameter name="in0" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+        <parameter name="in1" type="tns:PhoneNumber" xmlns:tns="urn:AddressFetcher"/>
+      </operation>
+      <operation name="editEmail" qname="operNS:editEmail" xmlns:operNS="urn:AddressFetcher" returnQName="editEmailReturn" returnType="rtns:string" xmlns:rtns="http://www.w3.org/2001/XMLSchema" >
+        <parameter name="in0" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+        <parameter name="in1" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+      </operation>
+      <operation name="removeAddress" qname="operNS:removeAddress" xmlns:operNS="urn:AddressFetcher" returnQName="removeAddressReturn" returnType="rtns:string" xmlns:rtns="http://www.w3.org/2001/XMLSchema" >
+        <parameter name="in0" type="tns:string" xmlns:tns="http://www.w3.org/2001/XMLSchema"/>
+      </operation>
+      <parameter name="allowedMethods" value="addEntry getAddressFromName getAllListings editName editAddress editPhone editEmail removeAddress"/>
+      <parameter name="scope" value="Session"/>
+
+      <typeMapping
+        xmlns:ns="urn:AddressFetcher"
+        qname="ns:Address"
+        type="java:AddressPackage.ws.Address"
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory"
+        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+      />
+      <typeMapping
+        xmlns:ns="urn:AddressFetcher"
+        qname="ns:PhoneNumber"
+        type="java:AddressPackage.ws.PhoneNumber"
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory"
+        encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+      />
+  </service>
+</deployment>
