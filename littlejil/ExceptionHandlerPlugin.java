@@ -102,35 +102,9 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
             Task task = exception.getTask();
             logger.debug("got exception for task " + task.getVerb());
 
-            // if this has been re-thrown from a child task, first remove any child steps that haven't run yet...
-            // these would be any sequential steps that came after the task that threw the exception
-            NewWorkflow remainingWorkflow = null;   // will be used if there's a continuation handler
-            NewWorkflow originalWorkflow = null;    // will be used if we need to restart the task
-
-
-            // TODO: when the exception is handled at a task that has subtasks with subtasks, then
-            // for COMPLETE, we need to publishRemove(expansion) *before* we get the remaining workflow,
-            // but for CONTINUE we need to do it afterwards... find a better way/way that works.
-
+            Task failedTask = null;
             if (exception.getNestedException() != null) {
-
-                Task failedTask = exception.getNestedException().getTask();
-                Workflow workflow = failedTask.getWorkflow();
-
-                // make a "backup" of this workflow, in case we need to restart
-                originalWorkflow = copyWorkflow(workflow);
-                originalWorkflow.setParentTask(task);
-
-                // and get a workflow for the remaining tasks, in case we need to continue
-                remainingWorkflow = factory.newWorkflow();
-                remainingWorkflow.setParentTask(task);
-                extractDependentTasks(failedTask, workflow, remainingWorkflow);
-
-                //logger.debug("after extractDependentTasks, got workflow " + remainingWorkflow);
-                if (task.getPlanElement() != null) {
-                    logger.debug("removing expansion for task " + task.getVerb());
-                    blackboard.publishRemove(task.getPlanElement());
-                }
+                failedTask = exception.getNestedException().getTask();
             }
 
 
@@ -146,21 +120,7 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 // TODO: look at multiple handlers (for now, just looking at first one)
                 // TODO: match exception types
                 HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
-                logger.debug("found handler: " + handlerBinding);
-
-                // following the "corner case" described above, if this is a RESTART handler and it's not
-                // a "parent" task, then we throw it up
-                if (handlerBinding.getControlFlow() == HandlerBinding.RESTART &&
-                        !task.getVerb().toString().endsWith("Parent")) {
-                    // throw it up to the parent
-                    logger.debug("deferring restart handler to parent");
-
-                    blackboard.publishAdd(factory.createExpansion(task.getPlan(), task, originalWorkflow, null));
-                    blackboard.publishChange(task);
-
-                    blackboard.publishAdd(new LittleJILException(exception));
-                    continue;   // with the for (Enumeration exceptions...)
-                }
+                logger.debug("found handler of type " + handlerBinding.getControlFlow());
 
                 Task handlerTask = null;
                 if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
@@ -169,10 +129,29 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 }
 
 
-                if (handlerBinding.getControlFlow() == HandlerBinding.CONTINUE && remainingWorkflow != null) {
+                if (handlerBinding.getControlFlow() == HandlerBinding.CONTINUE) {
 
-                    // newWorkflow will have the tasks that remained to be executed for this workflow
-                    // if there is a handler task, we want to insert that first....
+                    if (failedTask == null) {
+                        // trying to continue a leaf task -- not valid
+                        logger.info("cannot continue a leaf task -- rethrowing exception");
+                        if (task.getWorkflow() != null) {
+                            blackboard.publishAdd(new LittleJILException(exception));
+                        }
+
+                        logger.info(">>> task " + task.getVerb() + " FAILED <<<");
+                        continue;   // with for (Enumeration exceptions...)
+                    }
+
+                    // get a workflow for the remaining tasks
+                    NewWorkflow remainingWorkflow = factory.newWorkflow();
+                    remainingWorkflow.setParentTask(task);
+                    extractDependentTasks(failedTask, failedTask.getWorkflow(), remainingWorkflow);
+
+                    // now remove the original workflow for this task, since we'll post a new one
+                    if (task.getPlanElement() != null) {
+                        logger.debug("removing expansion for task " + task.getVerb());
+                        blackboard.publishRemove(task.getPlanElement());
+                    }
 
                     if (handlerTask != null) {
                         remainingWorkflow.addTask(handlerTask);
@@ -203,8 +182,13 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 }
                 else if (handlerBinding.getControlFlow() == HandlerBinding.COMPLETE) {
 
-                    // we already deleted the remaining tasks from this workflow, just add the handler task (if any)
+                    // first remove the existing expansion for this task, since we won't run any more tasks
+                    if (task.getPlanElement() != null) {
+                        logger.debug("removing expansion for task " + task.getVerb());
+                        blackboard.publishRemove(task.getPlanElement());
+                    }
 
+                    // now just add the handler task (if any)
                     NewWorkflow workflow = factory.newWorkflow();
                     workflow.setParentTask(task);
 
@@ -222,7 +206,46 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     blackboard.publishAdd(task);
                     blackboard.publishAdd(expansion);
                 }
-                else if (handlerBinding.getControlFlow() == HandlerBinding.RESTART && originalWorkflow != null) {
+                else if (handlerBinding.getControlFlow() == HandlerBinding.RESTART) {
+
+                    // first check that this came from a failed task below us
+                    if (failedTask == null) {
+                        // trying to restart a leaf task -- not valid
+                        logger.info("cannot restart on a leaf task -- rethrowing exception");
+                        if (task.getWorkflow() != null) {
+                            blackboard.publishAdd(new LittleJILException(exception));
+                        }
+
+                        logger.info(">>> task " + task.getVerb() + " FAILED <<<");
+                        continue;   // with for (Enumeration exceptions...)
+                    }
+
+                    // make a copy of this workflow, which we will post to restart the task
+                    Expansion originalExpansion = (Expansion) task.getPlanElement();
+                    NewWorkflow originalWorkflow = copyWorkflow(originalExpansion.getWorkflow());
+                    originalWorkflow.setParentTask(task);
+
+                    // now remove the existing expansion
+                    if (task.getPlanElement() != null) {
+                        logger.debug("removing expansion for task " + task.getVerb());
+                        blackboard.publishRemove(task.getPlanElement());
+                    }
+
+
+                    // following the "corner case" described above, if this task has pre-reqs, and
+                    // it has a RESTART handler, and it's not a "parent" task, then we throw it up.
+                    if (step.getPrerequisite() != null && !task.getVerb().toString().endsWith("Parent")) {
+                        // throw it up to the parent
+                        logger.debug("deferring restart handler to parent");
+
+                        // re-publish the task's workflow
+                        blackboard.publishAdd(factory.createExpansion(task.getPlan(), task, originalWorkflow, null));
+                        blackboard.publishChange(task);
+
+                        blackboard.publishAdd(new LittleJILException(exception));
+                        continue;   // with the for (Enumeration exceptions...)
+                    }
+
 
                     // if there is a handler task, and it's not already in the workflow, we want to insert that first....
                     // (it could be already if this is the second time we are restarting the task)
@@ -265,6 +288,12 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 else /*if (handlerBinding.getControlFlow() == HandlerBinding.RETHROW)*/ {
                     // default action is to RETHROW the exception
 
+                    // remove the current expansion, if any
+                    if (task.getPlanElement() != null) {
+                        logger.debug("removing expansion for task " + task.getVerb());
+                        blackboard.publishRemove(task.getPlanElement());
+                    }
+
                     NewWorkflow workflow = factory.newWorkflow();
                     workflow.setParentTask(task);
 
@@ -290,6 +319,13 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
 
             }
             else {
+
+                // remove the current expansion, if any
+                if (task.getPlanElement() != null) {
+                    logger.debug("removing expansion for task " + task.getVerb());
+                    blackboard.publishRemove(task.getPlanElement());
+                }
+
                 // exception is not handled, re-throw to the parent (if the task has a parent (ie, if task has workflow))
                 if (task.getWorkflow() != null) {
                     blackboard.publishAdd(new LittleJILException(exception));
@@ -314,62 +350,7 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
         return false;
     }
 
-    /**
-     * Copies all the tasks and constraints from the given workflow to a new one,
-     * @param workflow
-     * @return a copy of the given workflow
-     */
-    /** private NewWorkflow copyWorkflow(Workflow workflow) {
 
-        NewWorkflow newWorkflow = factory.newWorkflow();
-
-        Hashtable tasksTable = new Hashtable(); // need to keep track of new tasks, to set constraints properly
-
-        for (Enumeration tasks = workflow.getTasks();tasks.hasMoreElements();) {
-            Task task = (Task) tasks.nextElement();
-
-            NewTask newTask = factory.newTask();
-            newTask.setVerb(task.getVerb());
-
-            ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
-                    (new AspectValue(AspectType.END_TIME, LittleJILExpanderPlugin.getNextEndTime()));
-            Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
-            newTask.setPreference(pref);
-
-            newTask.setPlan(task.getPlan());
-
-            // need to get the step associated with the old task and associate it with this one too
-            Step step = stepsTable.get(task);
-            if (step != null) {
-                stepsTable.put(newTask, step);
-            }
-
-            newTask.setWorkflow(newWorkflow);
-            newWorkflow.addTask(newTask);
-            tasksTable.put(task, newTask);
-        }
-
-        for (Enumeration constraints = workflow.getConstraints();constraints.hasMoreElements();) {
-            Constraint constraint = (Constraint) constraints.nextElement();
-
-            Task newConstrainedTask = (Task) tasksTable.get(constraint.getConstrainedTask());
-            Task newConstrainingTask = (Task) tasksTable.get(constraint.getConstrainingTask());
-
-            NewConstraint newConstraint = factory.newConstraint();
-            newConstraint.setConstrainedTask(newConstrainedTask);
-            newConstraint.setConstrainedAspect(constraint.getConstrainedAspect());
-
-            newConstraint.setConstrainingTask(newConstrainingTask);
-            newConstraint.setConstrainingAspect(constraint.getConstrainingAspect());
-
-            newConstraint.setConstraintOrder(constraint.getConstraintOrder());
-
-            newWorkflow.addConstraint(newConstraint);
-        }
-
-
-        return newWorkflow;
-    }*/
     private NewWorkflow copyWorkflow(Workflow workflow) {
 
         NewWorkflow newWorkflow = factory.newWorkflow();
@@ -377,14 +358,31 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
         for (Enumeration tasks = workflow.getTasks();tasks.hasMoreElements();) {
             Task task = (Task) tasks.nextElement();
 
-            ((NewWorkflow) workflow).removeTask(task);
-            newWorkflow.addTask(task);
+            // remove the allocation from this task... otherwise it won't be re-published by the
+            // task expander
+            logger.debug("copying task " + task.getVerb() + ",planelement=" + task.getPlanElement());
+            if (task.getPlanElement() != null && task.getPlanElement() instanceof Allocation) {
+                logger.debug("removing allocation for task " + task.getVerb());
+                blackboard.publishRemove(task.getPlanElement());
+            }
 
+            newWorkflow.addTask(task);
         }
 
+        // we need to copy the constraints, because the ones in the workflow might already be satisified
         for (Enumeration constraints = workflow.getConstraints();constraints.hasMoreElements();) {
             Constraint constraint = (Constraint) constraints.nextElement();
-            newWorkflow.addConstraint(constraint);
+
+            NewConstraint newConstraint = factory.newConstraint();
+            newConstraint.setConstrainingTask(constraint.getConstrainingTask());
+            newConstraint.setConstrainingAspect(AspectType.END_TIME);
+
+            newConstraint.setConstrainedTask(constraint.getConstrainedTask());
+            newConstraint.setConstrainedAspect(AspectType.START_TIME);
+
+            newConstraint.setConstraintOrder(Constraint.BEFORE);
+
+            newWorkflow.addConstraint(newConstraint);
         }
 
 
