@@ -1,0 +1,31 @@
+- - - - - List of machine generated PropertyGroups - - - - -
+* ExecutorPG
+properties of an executor agent
+    String Capabilities;	//executable tasks of the executor
+    String Junction;	//class names of the junction for the executor
+    String ExecId;	//identification of the PlugIn originating the asset
+* WVMPG
+properties identifying a WVM for requesting a junction
+    String Address;	//IP address of the WVM
+    String Id;	//RMI id of the WVM
+    int SocketPort;	//socket port of the WVM
+    int RmiPort;	//RMI port of the WVM
+    int WebPort;
+* global
+- - - - - Permuted index of PropertyGroupSlots - - - - -
+* Address
+    WVMPG
+* Capabilities
+    ExecutorPG
+* ExecId
+    ExecutorPG
+* Id
+    WVMPG
+* Junction
+    ExecutorPG
+* RmiPort
+    WVMPG
+* SocketPort
+    WVMPG
+* WebPort
+    WVMPG

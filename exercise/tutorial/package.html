@@ -1,0 +1,87 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="Author" content="Valetto Giuseppe">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (Windows NT 5.0; U) [Netscape]">
+   <title>exercise package overview</title>
+</head>
+<body>
+The exercise.tutorial package provides a simple
+Workflakes example, for introducing the developer to the most basic features
+of the framework.
+<p>Such example introduces a part of the concepts governing Workflakes.
+It shows how to write simple shell plugins (specifically of the Allocator
+kind), their adaptor interfaces, and WDJs to match them and provide the
+plugins with logic to process workflow data.
+<br>The exercise is based upon Exercise number 6 of the&nbsp; <a href="http://www.cougaar.org">Cougaar
+basic tutorial</a>. The&nbsp; <a href="#Exc6">Figure below</a> , reproduced
+it here from the Cougaar training material, represents pictorially the
+content of that exercise. Two clusters collaborate on a simple resource
+allocation problem for a workflow.
+<br>The {@link psl.workflakes.exercise.tutorial.ManagerPlugIn ManagerPlugIn}
+posts a set of tasks onto the blackboard (aka <i>The Plan</i>), and the
+{@link psl.workflakes.exercise.tutorial.ManagerAllocatorPlugIn ManagerAllocatorPlugIn}
+allocates them to the other cluster, which is intended to represent a different
+organization with its own internal logic.
+<center>
+<p><a NAME="Exc6"></a><img SRC="exc6.gif" VSPACE=5 height=224 width=557></center>
+
+<p>The second plugin receives allocated tasks object in its own segment
+of the distributed blackboard and the
+<br>{@link psl.workflakes.exercise.tutorial.DevelopmentAllocatorPlugIn}
+there matches and assigns them to assets that are published and managed
+locally.
+<br>In our variant of the exercise, the logic for the Allocator plugins
+in both clusters is provided with WDJs that are dispatched by an ad hoc
+program (pull modality), that is, {@link psl.workflakes.exercise.tutorial.Exc6WklDispatcher}
+.
+<br>Those WDJS are - respectively -
+<br>{@link psl.workflakes.exercise.tutorial.DevAllocJunction DevAllocJunction}
+and
+<br>{@link psl.workflakes.exercise.tutorial.MgrAllocJunction MgrAllocJunction}.
+<h2>
+How to use the example</h2>
+To compile the example, simply invoke the <b>build.bat </b>script in the
+main directory of the example package.
+<br>The following instructions for running the example discuss how to run
+the two clusters in the same node:
+<ul>
+<li>
+invoke <b>run.bat Exc6Node</b></li>
+
+<li>
+when both clusters, <b>Management</b> and <b>Development</b>, are completely
+loaded, invoke in a different command window <b>DispatcherRun.bat &lt;hostname>
+Exc6Node_WVM 9101</b></li>
+
+<li>
+to visualize and navigate the results of the allocation exercise provided
+by the example, start your favorite browser and got to the URL&nbsp; of
+the Cougaar <a href="http://localhost:5555/$Development/alpine/demo/TASKS.PSP">PSP
+service</a>&nbsp; running within the example. That URL is spelled out as:
+http://127.0.0.1:5555/$Development/alpine/demo/TASKS.PSP (or alternatively
+http://127.0.0.1:5555/$Management/alpine/demo/TASKS.PSP (for information
+on the PSP service in Cougaar refer to the training material).</li>
+</ul>
+For running the same example with the two clusters distributed in two different
+nodes do the following:
+<ul>
+<li>
+invoke <b>run.bat Exc6NodeDev</b></li>
+
+<li>
+invoke <b>run.bat Exc6NodeMgmt </b>in a different command window</li>
+
+<li>
+in order to ship WDJs to the clusters, you will need to modify {@link psl.workflakes.exercise.tutorial.Exc6WklDispatcher}
+to dispatch the two Allocator junctions to the correct destination addresses.</li>
+</ul>
+Notice that there is ample space in this example to further expand the
+usage of Workflakes techniques.
+<br>For instance, we encourage to experiment with modifying the remaining
+plugins in the two clusters into shell plugins, and code appropriate WDJs
+and matching adaptors, on the basis of the facilities offered by {@link
+psl.workflakes.coolets the coolets package}.
+</body>
+</html>

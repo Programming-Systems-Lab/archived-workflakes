@@ -1,0 +1,205 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="Author" content="Valetto Giuseppe">
+   <meta name="GENERATOR" content="Mozilla/4.79 [en] (Windows NT 5.0; U) [Netscape]">
+   <title>Workflakes overview</title>
+</head>
+<body>
+Workflakes provides a Cougaar-based workflow system
+that is coupled with Worklets mobile agents and coordinates their remote
+activities.
+<p>Current Version of Workflakes is <b>1.0</b>
+<br>Dependencies:
+<ul>
+<li>
+Cougaar 7.x (migration to 8.x is under way) - see&nbsp; <a href="http://www.cougaar.org">Cougaar.org</a>
+: Cougaar is an open-source Java-based decentralized coordination infrastructure
+on top of which a workflow formalism can be implemented. Cougaar task processors
+are called <i>clusters.</i> Multiple clusters can be distributed over a
+network and communicate data among each other via a blackboard mechanism.
+Furthermore, clusters contain and run collections of <i>PlugIns. </i>While
+clusters are purely part of the infrastructure, plugins can provide application
+logic to a <i>society</i> of clusters, i.e. describe and run the workflow
+that follows under the responsibility of that society. There are a number
+of "canonic" plugins to carry out most typical duties in a workflow, such
+as:</li>
+
+<ul>
+<li>
+manipulating data</li>
+
+<li>
+publishing workflow tasks</li>
+
+<li>
+expanding tasks in hierarchies of subtasks</li>
+
+<li>
+allocating resources to tasks</li>
+
+<li>
+planning the execution of the workflow over time</li>
+
+<li>
+enacting and supervising it,</li>
+
+<li>
+and so on.</li>
+</ul>
+Most canonical plugins are included in the Cougaar distribution. It is
+the responsibility of the application programmer to specialize the Java
+classes representing those plugins to augment it with the correct logic
+for the workflow at hand. (For more information, see the extensive Cougaar
+<a href="http://www.cougaar.org">training
+material</a> )
+<li>
+Worklets - see&nbsp; <a href="http://www.psl.cs.columbia.edu">PSL labs</a>
+at Columbia University: Worklets is a Java-based&nbsp; mobile agents platform.
+A Worklet is a mobile container of code snippets named <i>worklet junctions,</i>
+which travels from host to host and deposit a junction at each spot. Deposited
+junctions are executed by <i>Worklet Virtual Machines</i>&nbsp; ({@link
+psl.worklets.WVM WVMs}) residing on the target hosts.</li>
+</ul>
+The Workflakes application exploits Worklets in conjunction with Cougaar
+in two fundamental ways:
+<ul>
+<li>
+To define and upload a workflow dynamically onto an existing Cougaar society.
+Workflakes includes a set of <b>Workflow Definition Junctions</b> (WDJs)
+- i.e. special-purpose worklet junctions that can be shipped on board of
+worklets to a Cougaar cluster, to provide behavior and logic to <i>shell
+plugins. </i>The base class for WDJs is {@link psl.workflakes.coolets.CooletIncomingJunction}<i>.
+</i>Shell
+plugins are another peculiarity of Workflakes: they are specialization
+of Cougaar basic plugin class, which expose some interfaces devoted to
+all of the main duties in a workflow system (see above) but with no internal
+logic. The base class for shell plugins is {@link psl.workflakes.coolets.WorkletPlugIn}<i>.
+</i>Shell
+plugins can accommodate and run WDJs that match their interfaces. This
+way WDJs can inject logic in a cluster from the outside, which leads to
+ease of reuse and evolution of the workflow. It is noticeable that - in
+principle - WDJs can be uploaded onto a community either with a push or
+a pull paradigm. Push is currently favoured, although a primitive library
+to support ontology-based detection and pull of WDJs from a factory had
+been implemented as {@link psl.workflakes.smartinf the Smart Interface
+package}, which is right now in practice <b><i>deprecated</i></b> since
+it's not up to par with the rest of Workflakes and needs some serious restoration
+work.</li>
+
+<li>
+To execute work in the "real world". The workflow defined and executed
+within a Cougaar society cannot have any side effects in the real world
+unless we provide some computational capabilties that are able to carry
+out the work symbolized by Workflow tasks (at least the hierarchy leafs).
+Workflakes includes to this end <b>Workflow Execution Junctions</b> (WEJs,
+also called Actuation junctions) - i.e. specialized worklet junctions that
+can be associated to the definition of workflow tasks and then dispatched
+from clusters onto external WVMs for executing there computations corresponding
+to those workflow tasks. Such WVMs with the interfaces they expose to incoming
+WEJs are maintained as internal information on the blackboard of the Workflakes
+system.</li>
+</ul>
+For reference, most of the classes that implement shell plugins, their
+interfaces, WDJs and WEJs and the related support facilities are included
+in package {@link psl.workflakes.coolets} and its subpackages.
+<p>Notice that in case of the choice regarding actuators for Workflakes
+is different from Worklets, the plugin-based architecture of Workflakes
+cluster (see&nbsp; <a href="#Architecture">below</a>) allows to substitute
+Workflakes (and specifically WEJs) with another actuator technology at
+little cost.
+<p>To learn to use Workflakes, it is strongly advised in the first place
+to familiarize&nbsp; with Cougaar, and its main concepts, which include
+<i>nodes </i>(Cougaar units of distribution ), clusters, plugins, <i>assets</i>
+(for representing facts and resources), dynamic planning, PSP (for reporting
+and communicating to the outside the state of the workflow) and so on.
+<br>An example of a small Workflakes society carrying out a simple workflow
+is found in the package for {@link psl.workflakes.exercise.tutorial}, which
+can be run as 2 communicating clusters, either running on the same Java
+Virtual Machine (a Cougaar Node) or on 2 different JVMs.
+<h2>
+<a NAME="Architecture"></a>Insight&nbsp; on Workflakes architecture</h2>
+A typical Workflakes cluster appears as follows:
+<center><img SRC="Cluster.png" VSPACE=5 BORDER=2 height=313 width=460 align=ABSBOTTOM></center>
+
+<p><b>LDM plugins</b> represent sources of facts and data exchanges with
+the external world; among those, one represents the repository of WEJs
+that are available to the cluster for dispatching as a response to given
+workflow tasks. External world data may for example represent triggers
+for a reactive workflow, once they are internalized into the blackboard
+by the appropriate LDM plugin.
+<br>In the Workflakes distribution, an example of an LDM shell plugin is
+provided, which allows to interface a cluster to the <a href="http://serl.cs.colorado.edu/~siena">Siena</a>
+event bus in a flexible fashion, which is programmable with appropriate
+WDJs.
+<p>Notice how a WVM is embedded in the cluster to allow docking of WDJs
+(see <a href="#WDJfig">Figure on the left below</a>) and dispatching of
+WEJs (handled in conjunction by <b>AllocatorPlugIn</b> and <b>ExecutorPlugIn
+</b>on
+the basis of the junction repository maintained by an LDM plugin- see <a href="#WEJfig">Figure
+on the right below</a> ). For substituting WEJs with some other actuation
+technology in Workflakes, it is sufficient to define new Allocator and
+Executor plugins with appropriate capbilities and ad hoc logic.
+<p><a NAME="WDJfig"></a><img SRC="WDJs.gif" VSPACE=5 BORDER=2 height=310 width=463 align=LEFT><a NAME="WEJfig"></a><img SRC="WEJs.gif" VSPACE=5 BORDER=2 height=311 width=466 align=ABSBOTTOM>
+<p>Incoming WDJs can define many facets of the workflow, such as:
+<ul>
+<li>
+Tasks to be posted on the blackboard</li>
+
+<li>
+Logic to extend posted tasks into <i>Expansions</i>, i.e. concatenations
+of further (sub-)tasks (see {@link psl.workflakes.coolets.ExpanderJunction}
+for the base class of WEJs defining expansion logic and {@link psl.workflakes.coolets.adaptors.ExpanderAdaptorInf}&nbsp;
+for the base interface to be implemented by Expander plugins).</li>
+
+<li>
+Information about the WEJs in the junction repository that can be associated
+to workflow tasks for actuation (see {@link psl.workflakes.coolets.JunctionLDMPlugIn}
+for the base class of LDM plugins handling WEJs )</li>
+
+<li>
+Information on how to process incoming triggers with LDM plugins (see for
+example {@link psl.workflakes.coolets.SienaLDMPlugIn} for the base class
+of LDM plugins handling triggers coming from an external source such as
+the Siena bus and {@link psl.workflakes.coolets.SienaLDMJunction} for the
+base class of WDJs providing processing logic for incoming Siena triggers)</li>
+
+<li>
+Policies that govern the assignment of WEJs to worklets and their dispatching
+on board of worklets</li>
+
+<li>
+etc.</li>
+</ul>
+
+<h2>
+Interactions between shell plugins and WDJs</h2>
+It is noticeable the pattern with which a WDJ interacts with a shell plugin
+to "fill" it with some workflow logic. First of all, the code of each WDJ
+must be developed against a certain <i>adaptor interface</i> and an incoming
+WDJ expects the shell plugin to expose the appropriate adaptor.
+<br>The code injected into a plugin by a WDJ has three main parts:
+<center><img SRC="JunctionIn.gif" BORDER=0 height=205 width=319></center>
+
+<ul>
+<li>
+Initialization: any set of computations that needs to be carried out immediately
+when the junction arrives</li>
+
+<li>
+Subscriptions: the junction can operate subscriptions onto the Cougaar
+blackboard on the behalf of the plugin</li>
+
+<li>
+Callbacks: the junctions define behaviors to be executed as soon as the
+blackboard subscriptions are matched and the control is given to the plugin
+in order to manipulate the matching elements of the blackboard.</li>
+</ul>
+Multiple WDJs can therefore be active at the same time within a plugin,
+each with its own set of subscriptions and callbacks.
+<br>Basic types adaptor interfaces for the most common types of shell plugins
+are found in the {@link psl.workflakes.coolets.adaptors} package.
+<br>&nbsp;
+</body>
+</html>
