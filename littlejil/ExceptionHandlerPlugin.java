@@ -26,7 +26,6 @@ import laser.littlejil.Step;
  *  - the exception handler is retrieved. at the moment only the first one is considered
  *  - the rest corresponds to the behavior of the exception handler (restarting, continuing, completing, rethrowing)
  *
- * TODO: better handling for complete tasks (esp when no handler step is available)
  *
  *
  * Implementing the PrivilegedClaimant interface allows this plugin to remove expansion that were
@@ -104,12 +103,6 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
                 logger.debug("found handler of type " + handlerBinding.getControlFlow());
 
-                Task handlerTask = null;
-                if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
-                    handlerTask = stepsTable.get((Step) handlerBinding.getTarget());
-                    logger.debug("found handler task: " + handlerTask.getVerb());
-                }
-
                 /////////////////////////////////////////////////////////////////////////////////////////////
                 // CONTINUE handler
                 if (handlerBinding.getControlFlow() == HandlerBinding.CONTINUE) {
@@ -125,13 +118,6 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         continue;   // with for (Enumeration exceptions...)
                     }
 
-                    // remove the current expansion
-                    Expansion originalExpansion = (Expansion) task.getPlanElement();
-                    if (originalExpansion != null)
-                        blackboard.publishRemove(originalExpansion);
-
-                    // TODO: use a different Request for TRY
-
                     // create a Request to ask the LittleJILExpander to re-post the following tasks.
                     // even though this might seem inefficient, it is cleaner than attempting to modify the
                     // existing workflow to continue after a task failed.
@@ -144,29 +130,8 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     ExceptionHandlerRequest request = new ExceptionHandlerRequest(type, step, task, failedStep);
                     blackboard.publishAdd(request);
 
-                    // add handler task so that it gets executed before the task gets restarted
-                    // (we insert it into the parent workflow)
-                    if (handlerTask != null) {
-                        NewWorkflow parentWorkflow = (NewWorkflow) task.getWorkflow();
-                        parentWorkflow.addTask(handlerTask);
-                        ((NewTask) handlerTask).setWorkflow(parentWorkflow);
-                        ((NewTask) handlerTask).setParentTask(parentWorkflow.getParentTask());
-
-                        NewConstraint constraint = factory.newConstraint();
-                        constraint.setConstrainingTask(handlerTask);
-                        logger.debug("handler task: " + handlerTask);
-                        constraint.setConstrainingAspect(AspectType.END_TIME);
-
-                        constraint.setConstrainedTask(task);
-                        logger.debug("current task: " + task);
-                        constraint.setConstrainedAspect(AspectType.START_TIME);
-
-                        constraint.setConstraintOrder(Constraint.BEFORE);
-
-                        parentWorkflow.addConstraint(constraint);
-
-                        //blackboard.publishChange(parentWorkflow);  // apparently not needed
-                    }
+                    // post the handler binding so that the handler task gets posted by LittleJILExpanderPlugin
+                    blackboard.publishAdd(handlerBinding);
 
 
                 }
@@ -174,28 +139,14 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 // COMPLETE handler
                 else if (handlerBinding.getControlFlow() == HandlerBinding.COMPLETE) {
 
-                    // first remove the existing expansion for this task, since we won't run any more tasks
-                    if (task.getPlanElement() != null) {
-                        logger.debug("removing expansion for task " + task.getVerb());
-                        blackboard.publishRemove(task.getPlanElement());
-                    }
+                    // create a RestartRequest to "send" to the LittleJILExpanderPlugin
+                    ExceptionHandlerRequest request =
+                            new ExceptionHandlerRequest(ExceptionHandlerRequest.COMPLETE, step, task, failedStep);
+                    blackboard.publishAdd(request);
 
-                    // now just add the handler task (if any)
-                    NewWorkflow workflow = factory.newWorkflow();
-                    workflow.setParentTask(task);
+                    // post the handler binding so that the handler task gets posted by LittleJILExpanderPlugin
+                    blackboard.publishAdd(handlerBinding);
 
-                    if (handlerTask != null) {
-                        workflow.addTask(handlerTask);
-                        ((NewTask) handlerTask).setWorkflow(workflow);
-                        ((NewTask) handlerTask).setParentTask(task);
-                    } else {
-                        // TODO: need to add a dummy task?? otherwise there's nothing to do for this task and it never completes
-                    }
-
-                    NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, workflow, null);
-
-                    blackboard.publishAdd(task);
-                    blackboard.publishAdd(expansion);
                 }
                 /////////////////////////////////////////////////////////////////////////////////////////////
                 // RESTART handler
@@ -221,49 +172,14 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         continue;   // with the for (Enumeration exceptions...)
                     }
 
-                    // remove the current expansion
-                    Expansion originalExpansion = (Expansion) task.getPlanElement();
-                    blackboard.publishRemove(originalExpansion);
-
-                    // add handler task so that it gets executed before the task gets restarted
-                    // (we insert it into the parent workflow)
-                    if (handlerTask != null) {
-
-                        /*Preference pref = handlerTask.getPreference(AspectType.END_TIME);
-                        Vector v = new Vector();
-                        v.add(pref);
-                        ((NewTask) handlerTask).setPreferences(v.elements());
-*/
-                        // remove handler's allocation so it gets ran again
-                        if (handlerTask.getPlanElement() != null && handlerTask.getPlanElement() instanceof Allocation) {
-                            blackboard.publishRemove(handlerTask.getPlanElement());
-                        }
-
-                        NewWorkflow parentWorkflow = (NewWorkflow) task.getWorkflow();
-                        parentWorkflow.addTask(handlerTask);
-                        ((NewTask) handlerTask).setWorkflow(parentWorkflow);
-                        ((NewTask) handlerTask).setParentTask(parentWorkflow.getParentTask());
-
-                        NewConstraint constraint = factory.newConstraint();
-                        constraint.setConstrainingTask(handlerTask);
-                        constraint.setConstrainingAspect(AspectType.END_TIME);
-                        logger.debug("handler task: " + handlerTask);
-
-                        constraint.setConstrainedTask(task);
-                        constraint.setConstrainedAspect(AspectType.START_TIME);
-                        logger.debug("current task: " + task);
-
-                        constraint.setConstraintOrder(Constraint.BEFORE);
-
-                        parentWorkflow.addConstraint(constraint);
-
-                        //blackboard.publishChange(parentWorkflow); // apparently not needed
-                    }
-
                     // create a RestartRequest to "send" to the LittleJILExpanderPlugin
                     ExceptionHandlerRequest request =
                             new ExceptionHandlerRequest(ExceptionHandlerRequest.RESTART, step, task, failedStep);
                     blackboard.publishAdd(request);
+
+                    // post the handler binding so that the handler task gets posted by LittleJILExpanderPlugin
+                    blackboard.publishAdd(handlerBinding);
+
 
                 }
                 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -276,22 +192,9 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         blackboard.publishRemove(task.getPlanElement());
                     }
 
-                    NewWorkflow workflow = factory.newWorkflow();
-                    workflow.setParentTask(task);
-
-                    if (handlerTask != null) {
-                        workflow.addTask(handlerTask);
-                        ((NewTask) handlerTask).setWorkflow(workflow);
-                        ((NewTask) handlerTask).setParentTask(task);
-
-                        NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, workflow, null);
-
-                        blackboard.publishAdd(task);
-                        blackboard.publishAdd(expansion);
-                    }
+                    blackboard.publishAdd(handlerBinding);
 
                     logger.info("rethrowing exception");
-                    // and re-throw the exception, too
                     if (task.getWorkflow() != null) {
                         blackboard.publishAdd(new LittleJILException(exception));
                     }
@@ -314,9 +217,6 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 if (task.getWorkflow() != null) {
                     blackboard.publishAdd(new LittleJILException(exception));
                 }
-
-                // remove task..
-                //blackboard.publishRemove(task);
 
                 logger.info(">>> task " + task.getVerb() + " FAILED <<<");
             }

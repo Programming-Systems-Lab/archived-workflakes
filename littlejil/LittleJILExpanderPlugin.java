@@ -29,7 +29,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);
     private IncrementalSubscription diagramSubscription;
-    private IncrementalSubscription stepSubscription;
+    private IncrementalSubscription handlerBindingSubscription;
     private IncrementalSubscription littleJILStepsTableSubscription;
     private IncrementalSubscription exceptionHandlerRequestSubscription;
 
@@ -40,8 +40,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     // the "end time" for new tasks, which keeps increasing...
     private static double endTime = 1.0;
-
-
+    public static final Verb DUMMY_TASK = new Verb("DUMMY_TASK");
 
     /**
      * Used by the binding utility through reflection to set my DomainService
@@ -57,15 +56,15 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
     }
 
-    private static class StepPredicate implements UnaryPredicate {
-        public boolean execute(Object o) {
-            return (o instanceof Step);
-        }
-    }
-
     private static class LittleJILStepsTablePredicate implements UnaryPredicate {
         public boolean execute(Object o) {
             return (o instanceof LittleJILStepsTable);
+        }
+    }
+
+    private static class HandlerBindingPredicate implements UnaryPredicate {
+        public boolean execute(Object o) {
+            return (o instanceof HandlerBinding);
         }
     }
 
@@ -79,9 +78,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         // set up the subscription to get diagrams
         diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
-        stepSubscription = (IncrementalSubscription) blackboard.subscribe(new StepPredicate());
         littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
         exceptionHandlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new ExceptionHandlerRequestPredicate());
+        handlerBindingSubscription = (IncrementalSubscription) blackboard.subscribe(new HandlerBindingPredicate());
 
         logger.info("ready.");
 
@@ -127,23 +126,51 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         }
 
-        // process any steps that need to be re-posted
-        // (as of now, used only in RESTART exception handlers)
-        for (Enumeration e = stepSubscription.getAddedList(); e.hasMoreElements();) {
+        // process any HandlerBindings that may have been posted by the ExceptionHandlerPlugin
+        // for each one, we need to create the task for that handler (if any) and post it
+        // so it executes before it's source task
+        for (Enumeration e = handlerBindingSubscription.getAddedList(); e.hasMoreElements();) {
 
-            Step step = (Step) e.nextElement();
-            logger.info("found step in blackboard: " + step.getName());
+            HandlerBinding binding = (HandlerBinding) e.nextElement();
 
-            // TODO: if this step already has a task associated with it, then modify that task
-            /*Task task = stepsTable.get(step);
-            if (task != null) {
-                makeTask(step, task, true);
+            if (binding.getTarget() != null && binding.getTarget() instanceof Step) {
+                logger.info("found handler binding in blackboard for step: " + binding.getSource().getName());
+
+                NewTask handlerTask = (NewTask) makeTask((Step)binding.getTarget());
+
+                // insert it into its source's workflow
+                Task parentTask = stepsTable.get(binding.getSource());
+                NewWorkflow parentWorkflow = (NewWorkflow) parentTask.getWorkflow();
+
+                parentWorkflow.addTask(handlerTask);
+                handlerTask.setWorkflow(parentWorkflow);
+                handlerTask.setParentTask(parentWorkflow.getParentTask());
+
+                NewConstraint constraint = factory.newConstraint();
+
+
+                if (binding.getControlFlow() == HandlerBinding.RETHROW) {
+                    constraint.setConstrainingTask(parentTask);
+                    constraint.setConstrainedTask(handlerTask);
+                }
+                else {
+                    constraint.setConstrainingTask(handlerTask);
+                    constraint.setConstrainedTask(parentTask);
+                }
+
+                constraint.setConstrainingAspect(AspectType.END_TIME);
+                constraint.setConstrainedAspect(AspectType.START_TIME);
+
+                constraint.setConstraintOrder(Constraint.BEFORE);
+
+
+
+                parentWorkflow.addConstraint(constraint);
             }
-            else {
-                makeTask(step);
-            }*/
+
 
         }
+
 
         for (Enumeration e = exceptionHandlerRequestSubscription.getAddedList(); e.hasMoreElements();) {
 
@@ -151,6 +178,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             makeTask(request.getStep(), request, true);
 
         }
+
 
     }
 
@@ -198,18 +226,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             ((NewTask) task).setVerb(new Verb(step.getName()));
 
 
-            // make tasks for any handlers that this step has, and put them in the steps table
-            // (they will be used in the ExceptionHandlerPlugin)
-            for (Enumeration handlers = step.handlers(); handlers.hasMoreElements();) {
-                HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
-                if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
-                    Step handlerStep = (Step) handlerBinding.getTarget();
-                    if (handlerStep != null) {
-                        stepsTable.put(handlerStep, makeTask(handlerStep));
-                    }
-                }
-            }
-
             ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
                     (new AspectValue(AspectType.END_TIME, getNextEndTime()));
             Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
@@ -223,65 +239,80 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         else {
             logger.info("processing Request for task " + task.getVerb());
 
-            // when we are retrying or restarting multiple times, we need to
-            // reset the START_TIME preference for the task, so that handler constraints are handled properly
-           /* Preference pref = task.getPreference(AspectType.END_TIME);
-            Vector v = new Vector();
-            v.add(pref);
-            ((NewTask) task).setPreferences(v.elements());*/
+            // remove the task's current expansion
+            if (task.getPlanElement() != null) {
+                blackboard.publishRemove(task.getPlanElement());
+            }
 
         }
 
         NewWorkflow workflow = factory.newWorkflow();
-
-        // now get subsets of this step and create tasks for those, and put them in the workflow
-        // NOTE: tasks are returned in the correct order (according to Little-JIL API docs)
         Task lastTask = null;
-        boolean continueFlag = false;   // (only if request is ContinueRequest) indicates that tasks should be now added
-        for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
-            Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
 
-            if (request != null && !continueFlag) {
-                if (request.getType() == ExceptionHandlerRequest.CONTINUE ||
-                    request.getType() == ExceptionHandlerRequest.TRY) {
-                    if (request.getFailedStep() == substep) {
-                        continueFlag = true;    // after this we can start adding tasks again
+        if (request != null && request.getType() == ExceptionHandlerRequest.COMPLETE) {
+            // create a "dummy" task, that will always be "executed" by the ExecutorPlugin, and put in the workflow
+            NewTask dummyTask= factory.newTask();
+            dummyTask.setVerb(DUMMY_TASK);
+
+            ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
+                    (new AspectValue(AspectType.END_TIME, getNextEndTime()));
+            Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
+            dummyTask.setPreference(pref);
+
+            workflow.addTask(dummyTask);
+            dummyTask.setParentTask(task);
+            dummyTask.setWorkflow(workflow);
+
+            lastTask = dummyTask;
+        }
+        else {
+            // get subsets of this step and create tasks for those, and put them in the workflow
+            // NOTE: tasks are returned in the correct order (according to Little-JIL API docs)
+            boolean continueFlag = false;   // (only if request is ContinueRequest) indicates that tasks should be now added
+            for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
+                Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
+
+                if (request != null && !continueFlag) {
+                    if (request.getType() == ExceptionHandlerRequest.CONTINUE ||
+                            request.getType() == ExceptionHandlerRequest.TRY) {
+                        if (request.getFailedStep() == substep) {
+                            continueFlag = true;    // after this we can start adding tasks again
+                        }
+                        continue;
                     }
-                    continue;
                 }
-            }
 
-            // recursive call to create this task -- this will create the task's subtasks, etc
-            NewTask subtask = (NewTask) makeTask(substep);
+                // recursive call to create this task -- this will create the task's subtasks, etc
+                NewTask subtask = (NewTask) makeTask(substep);
 
-            logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
-            subtask.setParentTask(task);
-            workflow.addTask(subtask);
-            subtask.setWorkflow(workflow);
+                logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
+                subtask.setParentTask(task);
+                workflow.addTask(subtask);
+                subtask.setWorkflow(workflow);
 
-            if (step.getStepKind() == Step.TRY) {
+                if (step.getStepKind() == Step.TRY) {
+                    lastTask = subtask;
+                    break;  // don't add any more tasks for now!
+                }
+                // if the parent step is sequential, set this task so it starts after the previous ends
+                else if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
+                    logger.info("making constraint so that task " + subtask.getVerb() + " goes after " + lastTask.getVerb());
+
+                    NewConstraint constraint = factory.newConstraint();
+                    constraint.setConstrainingTask(lastTask);
+                    constraint.setConstrainingAspect(AspectType.END_TIME);
+
+                    constraint.setConstrainedTask(subtask);
+                    constraint.setConstrainedAspect(AspectType.START_TIME);
+
+                    constraint.setConstraintOrder(Constraint.BEFORE);
+
+                    workflow.addConstraint(constraint);
+
+                }
+
                 lastTask = subtask;
-                break;  // don't add any more tasks for now!
             }
-            // if the parent step is sequential, set this task so it starts after the previous ends
-            else if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
-                logger.info("making constraint so that task " + subtask.getVerb() + " goes after " + lastTask.getVerb());
-
-                NewConstraint constraint = factory.newConstraint();
-                constraint.setConstrainingTask(lastTask);
-                constraint.setConstrainingAspect(AspectType.END_TIME);
-
-                constraint.setConstrainedTask(subtask);
-                constraint.setConstrainedAspect(AspectType.START_TIME);
-
-                constraint.setConstraintOrder(Constraint.BEFORE);
-
-                workflow.addConstraint(constraint);
-
-            }
-
-            lastTask = subtask;
-            // TODO: choice and try (in progress)
 
         }
 
@@ -296,9 +327,10 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             blackboard.publishAdd(expansion);
 
         }
-        // check: if this was a TRY request and we haven't added any tasks, it means there weren't any left
-        // and we should post an exception
         else if (request != null && request.getType() == ExceptionHandlerRequest.TRY) {
+            // check: if this was a TRY request and we haven't added any tasks, it means there weren't any left
+            // and we should post an exception
+
             logger.info("no more tasks left to try, posting exception");
             LittleJILException exception = new LittleJILException(task, "NoMoreAlternativesException");
             blackboard.publishAdd(exception);
