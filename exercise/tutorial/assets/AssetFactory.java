@@ -19,7 +19,7 @@
  * </copyright>
  */
 
-/* @generated Wed May 22 14:27:04 CEST 2002 from programmer_assets.def - DO NOT HAND EDIT */
+/* @generated Tue Feb 18 02:31:28 CET 2003 from programmer_assets.def - DO NOT HAND EDIT */
 package psl.workflakes.exercise.tutorial.assets;
 import org.cougaar.domain.planning.ldm.asset.EssentialAssetFactory;
 

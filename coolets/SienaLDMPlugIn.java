@@ -12,6 +12,7 @@ import java.util.Vector;
 import java.util.Enumeration;
 import java.lang.reflect.Method;
 import siena.*;
+import siena.comm.*;
 import org.cougaar.core.society.Communications;
 import org.cougaar.core.plugin.*;
 import org.cougaar.core.cluster.ClusterServesPlugIn;

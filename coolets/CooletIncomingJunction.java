@@ -57,10 +57,11 @@ public class CooletIncomingJunction
          * @see psl.worklets.WorkletJunction for parameters to this constructor
          * @param host target host
          * @param name target RMI name
-         * @param port target socket port
+         * @param rPort target RMI port
+         * @param sPort target socket port
          */
-	public CooletIncomingJunction (String host, String name, int port) {
-		super (host, name, port);
+	public CooletIncomingJunction (String host, String name, int rPort, int sPort) {
+		super (host, name, rPort, sPort, false, new String("default"), null);
 		myTriggerPred = null;
 		myPlugInTarget = null;
 		clusterID = null;
@@ -74,7 +75,7 @@ public class CooletIncomingJunction
          * @param wvm handle to the target WVM
          */
 	public void init(Object system, WVM wvm) {
-		super.init(system, wvm);
+		//super.init(system, wvm);
 		//System.out.println ("system class: " + system.getClass().getName());
 		//myTriggerPred = new genericPredicate();
 		myTarget = (NodeWklInf) system;

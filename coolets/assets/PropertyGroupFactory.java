@@ -19,7 +19,7 @@
  * </copyright>
  */
 
-/* @generated Sun Jun 30 00:56:41 CEST 2002 from properties.def - DO NOT HAND EDIT */
+/* @generated Tue Feb 18 01:40:04 CET 2003 from properties.def - DO NOT HAND EDIT */
 /** AbstractFactory implementation for Properties.
  * Prevents clients from needing to know the implementation
  * class(es) of any of the properties.

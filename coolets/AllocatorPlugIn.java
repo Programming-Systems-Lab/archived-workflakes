@@ -285,7 +285,7 @@ public class AllocatorPlugIn
     Verb taskVerb = theTask.getVerb();
     Asset dirObj = theTask.getDirectObject();
     WorkletJunction taskJunction = null;
-    TaskReturnJunction homeJunction = new TaskReturnJunction (comAddress, WVMName, myWVM.getPort());
+    TaskReturnJunction homeJunction = new TaskReturnJunction (comAddress, WVMName, myWVM.getRMIPort(), myWVM.getWVMPort());
     homeJunction.setAllocID (a.getUID());
     homeJunction.setExecID (executor.getUID());
     homeJunction.setClusterID (getClusterIdentifier().toString());
@@ -307,7 +307,8 @@ public class AllocatorPlugIn
     int i;
     Constructor theConstructor = null;
     try {
-	Class[] constructorParams = {Class.forName("java.lang.String"), Class.forName("java.lang.String"), int.class};
+	Class[] constructorParams = {Class.forName("java.lang.String"), Class.forName("java.lang.String"), int.class, int.class,
+									boolean.class, Class.forName("java.lang.String"), Class.forName("psl.worklets.JunctionPlanner")};
 	theConstructor = juncClass.getConstructor (constructorParams);
     } catch (NoSuchMethodException e1) {
 	failTask (theTask);
@@ -320,7 +321,8 @@ public class AllocatorPlugIn
     //target host setting
     WVMPG targetWVM = allocJunction.getTargetWVM(a);
 
-    Object[] params= {targetWVM.getAddress(), targetWVM.getId(), new Integer(targetWVM.getSocketPort())};
+    Object[] params= {targetWVM.getAddress(), targetWVM.getId(), new Integer(targetWVM.getRmiPort()),
+    					new Integer(targetWVM.getSocketPort()), new Boolean(false), new String("default"), (psl.worklets.JunctionPlanner)null};
     try {
 	taskJunction = (WorkletJunction) theConstructor.newInstance(params);
     } catch (Exception e) { // could not instantiate the junction

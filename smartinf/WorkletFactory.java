@@ -42,7 +42,7 @@ public class WorkletFactory
       			System.err.println("Shutting down; no known hostname found");
       			System.exit(0);
     		} 
-    		myWVM = new WVM(this, host, name);
+    		myWVM = new WVM(this, host, name, port, null, null, null, null, null, null, 0);
     		//myWVM.start();	
 	}
 
@@ -133,13 +133,13 @@ public class WorkletFactory
 
 		LockObject requestLock = new LockObject(requestCode, request);
 
-		FactoryWklJunction homeJunction = new FactoryWklJunction (host, WVM_ID);
+		FactoryWklJunction homeJunction = new FactoryWklJunction (host, WVM_ID, myWVM.getRMIPort(), myWVM.getWVMPort());
 		System.out.println ("Created comeback junction to host: " + host + "and WVM: " + WVM_ID);
 		System.out.println ("for request with code: " + requestCode);
 		homeJunction.setCode(requestCode);
 		Worklet fwdWkl = new Worklet(homeJunction); // worklet must return here
 		
-		WklOracleJunction fwdRequest = new WklOracleJunction(host, "NewLocalWorkletOracle");
+		WklOracleJunction fwdRequest = new WklOracleJunction(host, "NewLocalWorkletOracle", myWVM.getRMIPort(), 0);
 		fwdRequest.setRequestHost(host);
 		fwdRequest.setRequestName(WVM_ID);
 		fwdRequest.setMatchMode(matchMode);
@@ -191,8 +191,10 @@ public class WorkletFactory
 	WorkletJunction newJunction;
 	try
 	    {	
-		Constructor c = junctionClass.getConstructor (new Class[]{host.getClass(), agent.getClass()});
-		newJunction = (WorkletJunction) c.newInstance(new Object[]{host, agent});
+		Constructor c = junctionClass.getConstructor (new Class[]{host.getClass(), agent.getClass(), int.class, int.class, 
+									boolean.class, Class.forName("java.lang.String"), Class.forName("psl.worklets.JunctionPlanner")});
+		newJunction = (WorkletJunction) c.newInstance(new Object[]{host, agent, new Integer(myWVM.getRMIPort()), new Integer(0),
+											new Boolean(false), new String("default"), (psl.worklets.JunctionPlanner)null});
 	    }
 	catch (Exception e) 
 	    {
@@ -207,7 +209,7 @@ public class WorkletFactory
     {
 	// should extract class from an URL
 	// then instantiate a junction of the right class with the right parameters
-	return (new SomeJunction(host, agent));
+	return (new SomeJunction(host, agent, myWVM.getRMIPort(), 0));
     }
 	
 //implementation of the interface WklTargetInf 

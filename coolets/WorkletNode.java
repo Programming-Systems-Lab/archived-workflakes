@@ -156,7 +156,7 @@ public class WorkletNode
 		int port = Communications.getPort();
 		String addr = Communications.getFdsAddress();
 		WVMid = getIdentifier() + "_WVM";
-		nodeWVM = new WVM (this, addr, WVMid, port);
+		nodeWVM = new WVM (this, addr, WVMid, port, null, null, null, null, null, null, 0);
 		
 		if (!getServiceBroker().hasService(WVMRegService.class))
 			establishRegService();

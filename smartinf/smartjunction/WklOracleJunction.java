@@ -21,9 +21,9 @@ public class WklOracleJunction
     private WklOracleTargetInf myTarget;
     private Class[] junctionArray;
 
-    public WklOracleJunction (String remoteHost, String remoteName)
+    public WklOracleJunction (String remoteHost, String remoteName, int rPort, int sPort)
     {
-	super(remoteHost, remoteName);
+	super(remoteHost, remoteName, rPort, sPort);
     }
 
     public void init(Object _target, WVM wvm)

@@ -44,11 +44,12 @@ public class TaskJunction
         /**
          * Typical junction Constructor
          * @param host target hostname
-         * @param name target RMI name of the target <code>WVM</code>
-         * @param port target socket port of the target <code>WVM</code>
+         * @param name RMI name of the target <code>WVM</code>
+         * @param rPort target RMI port
+         * @param sPort target socket port of the target <code>WVM</code>
          */
-	public TaskJunction (String host, String name, int port) {
-		super (host, name, port);
+	public TaskJunction (String host, String name, int rPort, int sPort) {
+		super (host, name, rPort, sPort, false, new String("default"), null);
 		retHandle = null;
 		taskData = new Vector();
 		messageDelivered = null;
@@ -61,6 +62,7 @@ public class TaskJunction
          * @param host target hostname
          * @param name target RMI name of the target <code>WVM</code>
          */
+/*
 	public TaskJunction (String host, String name) {
 		super (host, name);
 		retHandle = null;
@@ -68,14 +70,14 @@ public class TaskJunction
 		messageDelivered = null;
 		System.out.println ("\t\tTaskJunction instantiated ...");
 	}
-
+*/
         /**
          * typical junction initialization just does default
          * @param system
          * @param wvm
          */
 	public void init(Object system, WVM wvm) {
-		super.init(system, wvm);
+		//super.init(system, wvm);
 		System.out.println ("\t\tTaskJunction initialized ...");
 	}
 

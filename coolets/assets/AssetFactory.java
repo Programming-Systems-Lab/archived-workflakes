@@ -19,7 +19,7 @@
  * </copyright>
  */
 
-/* @generated Sun Jun 30 00:56:39 CEST 2002 from ExecAgents_assets.def - DO NOT HAND EDIT */
+/* @generated Tue Feb 18 01:40:03 CET 2003 from ExecAgents_assets.def - DO NOT HAND EDIT */
 package psl.workflakes.coolets.assets;
 import org.cougaar.domain.planning.ldm.asset.EssentialAssetFactory;
 

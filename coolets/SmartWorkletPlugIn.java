@@ -148,7 +148,7 @@ public class SmartWorkletPlugIn
 		}
 
 		Worklet wkl = new Worklet(null);
-		CooletIncomingJunction request = new CooletIncomingJunction (comAddress, "NewLocalWorkletFactory", 9101);
+		CooletIncomingJunction request = new CooletIncomingJunction (comAddress, "NewLocalWorkletFactory", comPort, 9101);
 		/*
 		request.setRequestHost(comAddress);
 		request.setRequestName(uniqueName);

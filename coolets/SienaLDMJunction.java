@@ -48,10 +48,11 @@ public abstract class SienaLDMJunction
          * @see psl.worklets.WorkletJunction for the meaning of the parameters
          * @param host hostname of the WVM of junction target
          * @param name RMI name of the WVM of junction target
-         * @param port RMI port of the WVM of junction target
+         * @param rPort RMI port of the WVM of junction target
+         * @param sPort socket port of the WVM of junction target
          */
-	public SienaLDMJunction (String host, String name, int port) {
-		super (host, name, port);
+	public SienaLDMJunction (String host, String name, int rPort, int sPort) {
+		super (host, name, rPort, sPort);
 		filters = new Vector();
 	}
 

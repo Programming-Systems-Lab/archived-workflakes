@@ -23,23 +23,25 @@ public abstract class SmartWorkletJunction // assumes only ONE target per juncti
     protected WklTargetInf voidInf;
     protected Class targetClass;
 
-  public SmartWorkletJunction(String remoteHost, String remoteName, int port) 
+  public SmartWorkletJunction(String remoteHost, String remoteName, int rPort, int sPort) 
   {
-	super(remoteHost, remoteName, port);
+	super(remoteHost, remoteName, rPort, sPort, false, new String("default"), null);
 	voidInf = null;
 	targetClass = null;
   }
-  
+
+/*  
   public SmartWorkletJunction(String remoteHost, String remoteName) 
   {
 	super(remoteHost, remoteName);
 	voidInf = null;
 	targetClass = null;
   }
+*/
 
   public void init(Object _target, WVM _wvm) 
   {
-      super.init(_target, _wvm);
+      //super.init(_target, _wvm);
       setTargetClass (_target);
   }
   

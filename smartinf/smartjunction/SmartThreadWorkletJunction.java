@@ -20,9 +20,9 @@ public abstract class SmartThreadWorkletJunction
     protected String lockID;
     protected WklThreadTargetInf myThreadInf;
  
-    public SmartThreadWorkletJunction (String remoteHost, String remoteName)
+    public SmartThreadWorkletJunction (String remoteHost, String remoteName, int rPort, int sPort)
     {
-	super(remoteHost, remoteName);
+	super(remoteHost, remoteName, rPort, sPort);
 	lockID = null;
 	myThreadInf = null;
     }

@@ -18,8 +18,8 @@ import org.cougaar.core.cluster.IncrementalSubscription;
 public class MgrAllocJunction
 	extends CooletIncomingJunction {
 
-	public MgrAllocJunction (String host, String name, int port) {
-		super (host, name, port);
+	public MgrAllocJunction (String host, String name, int rPort, int sPort) {
+		super (host, name, rPort, sPort);
 	}
 	
 	public void init (Object system, WVM wvm) {

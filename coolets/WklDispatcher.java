@@ -35,19 +35,21 @@ public class WklDispatcher implements Serializable {
     WklDispatcher disp = new WklDispatcher(args);
   }
   private WklDispatcher(String args[]) {
-    if (args.length != 3) {
-      System.out.println("usage: java WklDispatcher <rHost> <rName> <rPort>");
+    if (args.length != 4) {
+      System.out.println("usage: java WklDispatcher <rHost> <rName> <rPort> <sockPort>");
       System.exit(0);
   }
 
     String rHost = args[0];
     String rName = args[1];
     int rPort = Integer.parseInt(args[2]);
+    int sockPort = Integer.parseInt(args[3]);
 
    try {
-      WVM wvm = new WVM(this,  InetAddress.getLocalHost().getHostName(),"WklDispatcher", rPort);
+      WVM wvm = new WVM(this,  InetAddress.getLocalHost().getHostName(),"WklDispatcher", rPort,
+      			null, null, null, null, null, null, 0);
       Worklet wkl = new Worklet(null);
-      CooletIncomingJunction junc = new CooletIncomingJunction(rHost, rName, rPort);
+      CooletIncomingJunction junc = new CooletIncomingJunction(rHost, rName, rPort, sockPort);
       wkl.addJunction(junc);
       wkl.deployWorklet(wvm);
     } catch (java.net.UnknownHostException e) {

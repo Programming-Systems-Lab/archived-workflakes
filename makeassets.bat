@@ -1,5 +1,5 @@
 rem Script to generate asset classes
-set PSL_HOME=D:\peppo\codice
+set PSL_HOME=C:\pslcvs
 set ALP_INSTALL_PATH=%PSL_HOME%\tools\cougaar-8.8
 
 

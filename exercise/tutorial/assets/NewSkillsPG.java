@@ -19,7 +19,7 @@
  * </copyright>
  */
 
-/* @generated Wed May 22 14:27:04 CEST 2002 from properties.def - DO NOT HAND EDIT */
+/* @generated Tue Feb 18 02:31:29 CET 2003 from properties.def - DO NOT HAND EDIT */
 /** Additional methods for SkillsPG
  * offering mutators (set methods) for the object's owner
  **/

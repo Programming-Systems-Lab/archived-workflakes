@@ -9,7 +9,7 @@ if "%1"=="" goto ARG_ERROR
 set LIBPATHS=%ALP_INSTALL_PATH%\lib\core.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\glm.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\planserver.jar
-set LIBPATHS=%LIBPATHS%;%PSL_HOME%\jars\xerces.jar
+set LIBPATHS=%LIBPATHS%;%PSL_HOME%\tools\xerces.jar
 set LIBPATHS=%LIBPATHS%;%PSL_HOME%
 set LIBPATHS=.;%LIBPATHS%
 
@@ -18,7 +18,7 @@ REM pass in "NodeName" to run a specific named Node
 set MYPROPERTIES=
 set MYMEMORY=
 set MYCLASSES= psl.workflakes.exercise.tutorial.Exc6WklDispatcher
-set MYARGUMENTS= %1 %2 %3
+set MYARGUMENTS= %1 %2 %3 %4
 
 @ECHO ON
 

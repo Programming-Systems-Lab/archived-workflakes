@@ -47,8 +47,8 @@ public class TaskReturnJunction
 	public void setExecID(UID s) { execID = s; }
 	public void setSuccess(boolean flag) { success = flag; }
 
-	public TaskReturnJunction (String host, String name, int port) {
-		super (host, name, port);
+	public TaskReturnJunction (String host, String name, int rPort, int sPort) {
+		super (host, name, rPort, sPort);
 		allocID = null;
 		execID = null;
 		originPlugIn = null;

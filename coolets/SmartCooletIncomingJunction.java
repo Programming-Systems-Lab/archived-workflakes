@@ -66,10 +66,11 @@ public class SmartCooletIncomingJunction
          * @see psl.worklets.WorkletJunction for parameters to this constructor
          * @param host target host
          * @param name target RMI name
-         * @param port target socket port
+         * @param rPort target RMI port
+         * @param sPort target socket port
          */
-	public SmartCooletIncomingJunction (String host, String name, int port) {
-		super (host, name, port);
+	public SmartCooletIncomingJunction (String host, String name, int rPort, int sPort) {
+		super (host, name, rPort, sPort);
 		myTriggerPred = null;
 		myPlugInTarget = null;
 		clusterID = null;

@@ -15,9 +15,9 @@ public class SomeOtherJunction
 {
     SomeOtherTargetInf myTarget;
 	
-    public SomeOtherJunction (String remoteHost, String remoteName)
+    public SomeOtherJunction (String remoteHost, String remoteName, int rPort, int sPort)
     {
-	super(remoteHost, remoteName);
+	super(remoteHost, remoteName, rPort, sPort);
     }
 
     public void init(Object _target, WVM _wvm)

@@ -17,21 +17,23 @@ public class Exc6WklDispatcher {
     Exc6WklDispatcher disp = new Exc6WklDispatcher(args);
   }
   private Exc6WklDispatcher(String args[]) {
-    if (args.length != 3) {
-      System.out.println("usage: java WklDispatcher <rHost> <rName> <rPort>");
+    if (args.length != 4) {
+      System.out.println("usage: java WklDispatcher <rHost> <rName> <rPort> <sockPort>");
       System.exit(0);
     }
     
     String rHost = args[0];
     String rName = args[1];
     int rPort = Integer.parseInt(args[2]);
+    int sockPort = Integer.parseInt(args[3]);
     
     try {
-      WVM wvm = new WVM(this,  InetAddress.getLocalHost().getHostName(),"WklDispatcher", rPort);
+      WVM wvm = new WVM(this,  InetAddress.getLocalHost().getHostName(),"WklDispatcher",  rPort,
+      			null, null, null, null, null, null, 0);
       
       // worklet for ManagementAllocator
       Worklet wkl = new Worklet(null);
-      MgrAllocJunction junc1 = new MgrAllocJunction(rHost, rName, rPort);
+      MgrAllocJunction junc1 = new MgrAllocJunction(rHost, rName, rPort, sockPort);
       junc1.setPred (new isTaskPredicate());
       junc1.setClusterID ("Management");
       junc1.setPluginID ("psl.workflakes.exercise.tutorial.ManagerAllocatorPlugIn[]");
@@ -40,7 +42,7 @@ public class Exc6WklDispatcher {
       
       // worklet for DevelopmentAllocator
       wkl = new Worklet(null);
-      DevAllocJunction junc2 = new DevAllocJunction(rHost, "Exc6NodeDev_WVM", 9101);
+      DevAllocJunction junc2 = new DevAllocJunction(rHost, rName, rPort, sockPort);
       junc2.setPred (new isDevTaskPredicate());
       junc2.setClusterID ("Development");
       junc2.setPluginID ("psl.workflakes.exercise.tutorial.DevelopmentAllocatorPlugIn[]");

@@ -21,9 +21,9 @@ public class FactoryWklJunction
     private URL junctionURL;
     private String requestCode = null;
 	
-	public FactoryWklJunction (String remoteHost, String remoteName)
+	public FactoryWklJunction (String remoteHost, String remoteName, int rPort, int sPort)
    	{
-		super(remoteHost, remoteName);
+		super(remoteHost, remoteName, rPort, sPort);
 		junctionURL = null;
    	}
     

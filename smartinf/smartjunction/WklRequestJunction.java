@@ -24,14 +24,15 @@ public class WklRequestJunction
     protected URL wklRequestURL;
     protected WklMatchingCriteria matchMode;
 
-    public WklRequestJunction (String remoteHost, String remoteName, int port)
+    public WklRequestJunction (String remoteHost, String remoteName, int rPort, int sPort)
     {
-	super(remoteHost, remoteName, port);
+	super(remoteHost, remoteName, rPort, sPort);
 	wklRequestURL = null;
 	wklRequestStructure = null;
 	requestID = null;
 	}
 
+/*
 	public WklRequestJunction (String remoteHost, String remoteName)
     {
 	super(remoteHost, remoteName);
@@ -39,7 +40,7 @@ public class WklRequestJunction
 	wklRequestStructure = null;
 	requestID = null;
     }
-
+*/
     public void init(Object _target, WVM _wvm)
     {
 	// System.out.println (_target.getClass().getName());

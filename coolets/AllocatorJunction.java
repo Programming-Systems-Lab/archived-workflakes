@@ -29,8 +29,8 @@ import psl.workflakes.coolets.adaptors.AllocatorAdaptorInf;
 
 public abstract class AllocatorJunction extends CooletIncomingJunction {
 
-  public AllocatorJunction (String host, String name, int port) {
-    super (host, name, port);
+  public AllocatorJunction (String host, String name, int rPort, int sPort) {
+    super (host, name, rPort, sPort);
   }
 
   public void init (Object system, WVM wvm) {

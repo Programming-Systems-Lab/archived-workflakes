@@ -37,8 +37,8 @@ import psl.workflakes.coolets.adaptors.ExpanderAdaptorInf;
 public abstract class ExpanderJunction
 	extends CooletIncomingJunction {
 
-	public ExpanderJunction (String host, String name, int port) {
-		super (host, name, port);
+	public ExpanderJunction (String host, String name, int rPort, int sPort) {
+		super (host, name, rPort, sPort);
   	}
 
   	public void init (Object system, WVM wvm) {
