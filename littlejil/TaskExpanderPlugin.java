@@ -142,7 +142,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
             //logger.debug("looking at task " + task.getVerb());
 
             if (task.getPlanElement() == null) {
-                // task is a leaf task
+                // task is a leaf task and has not been yet allocated
 
                 // have to check each constraint, because this task may just be constraining
                 // some other task. if we find that this task is indeed being constrained, then

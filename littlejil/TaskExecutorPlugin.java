@@ -209,7 +209,7 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
             Task task = allocation.getTask();
 
-            int waitTime = random.nextInt(1)+2;
+            int waitTime = 1;
             logger.info(">>> executing task " + task.getVerb() + ", will be done in " + waitTime + " seconds.");
 
             // "wait for task to be done"
@@ -239,6 +239,7 @@ class TaskMonitorJunction extends WorkletJunction {
     ReturnJunction returnJunction;
 
     public TaskMonitorJunction(String taskName, ReturnJunction returnJunction, String host, String name, int port) {
+
         super(host, name, port);
         this.taskName = taskName;
         this.returnJunction = returnJunction;
