@@ -109,13 +109,13 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                     Task constrainedTask = constraint.getConstrainedTask();
 
-                    // first check if this is a choice or try task, in which case we actually
+                    /*// first check if this is a choice or try task, in which case we actually
                     // don't want to run any more of these tasks
                     // TODO: in progress
                     Step step = stepsTable.get(workflow.getParentTask());
                     if (step.getStepKind() == Step.CHOICE || step.getStepKind() == Step.TRY) {
                         continue;
-                    }
+                    }*/
 
 
                     // we've resolved this constraint, but before we continue, we should check if
