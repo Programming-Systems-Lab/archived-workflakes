@@ -120,8 +120,11 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 remainingWorkflow.setParentTask(task);
                 extractDependentTasks(failedTask, workflow, remainingWorkflow);
 
-                logger.debug("after extractDependentTasks, got workflow " + remainingWorkflow);
-                blackboard.publishRemove(task.getPlanElement());
+                //logger.debug("after extractDependentTasks, got workflow " + remainingWorkflow);
+                if (task.getPlanElement() != null) {
+                    logger.debug("removing expansion for task " + task);
+                    blackboard.publishRemove(task.getPlanElement());
+                }
 
             }
 
