@@ -12,3 +12,7 @@ set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\glm.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\planserver.jar
 
 javac -classpath .;%LIBPATHS%;%PSL_HOME% coolets\*.java coolets\adaptors\*.java
+
+rem compile the smartinf code
+
+javac -classpath .;%LIBPATHS%;%PSL_HOME% smartinf\*.java smartinf\smartjunction\*.java
