@@ -130,8 +130,11 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     ExceptionHandlerRequest request = new ExceptionHandlerRequest(type, step, task, failedStep);
                     blackboard.publishAdd(request);
 
-                    // post the handler binding so that the handler task gets posted by LittleJILExpanderPlugin
-                    blackboard.publishAdd(handlerBinding);
+                    // post a HandlerRequest so that the handler task gets posted by LittleJILExpanderPlugin
+                    if (handlerBinding.getTarget() != null) {
+                        HandlerRequest handlerRequest = new HandlerRequest(handlerBinding, task);
+                        blackboard.publishAdd(handlerRequest);
+                    }
 
 
                 }
@@ -144,8 +147,11 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                             new ExceptionHandlerRequest(ExceptionHandlerRequest.COMPLETE, step, task, failedStep);
                     blackboard.publishAdd(request);
 
-                    // post the handler binding so that the handler task gets posted by LittleJILExpanderPlugin
-                    blackboard.publishAdd(handlerBinding);
+                    // post a HandlerRequest so that the handler task gets posted by LittleJILExpanderPlugin
+                    if (handlerBinding.getTarget() != null) {
+                        HandlerRequest handlerRequest = new HandlerRequest(handlerBinding, task);
+                        blackboard.publishAdd(handlerRequest);
+                    }
 
                 }
                 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,8 +183,13 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                             new ExceptionHandlerRequest(ExceptionHandlerRequest.RESTART, step, task, failedStep);
                     blackboard.publishAdd(request);
 
-                    // post the handler binding so that the handler task gets posted by LittleJILExpanderPlugin
-                    blackboard.publishAdd(handlerBinding);
+                    // post a HandlerRequest so that the handler task gets posted by LittleJILExpanderPlugin
+                    if (handlerBinding.getTarget() != null) {
+                        HandlerRequest handlerRequest = new HandlerRequest(handlerBinding, task);
+                        blackboard.publishAdd(handlerRequest);
+                    }
+
+
 
 
                 }
@@ -192,7 +203,11 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         blackboard.publishRemove(task.getPlanElement());
                     }
 
-                    blackboard.publishAdd(handlerBinding);
+                    // post a HandlerRequest so that the handler task gets posted by LittleJILExpanderPlugin
+                    if (handlerBinding.getTarget() != null) {
+                        HandlerRequest handlerRequest = new HandlerRequest(handlerBinding, task);
+                        blackboard.publishAdd(handlerRequest);
+                    }
 
                     logger.info("rethrowing exception");
                     if (task.getWorkflow() != null) {

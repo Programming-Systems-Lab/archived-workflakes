@@ -29,7 +29,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);
     private IncrementalSubscription diagramSubscription;
-    private IncrementalSubscription handlerBindingSubscription;
+    private IncrementalSubscription handlerRequestSubscription;
     private IncrementalSubscription littleJILStepsTableSubscription;
     private IncrementalSubscription exceptionHandlerRequestSubscription;
 
@@ -62,9 +62,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
     }
 
-    private static class HandlerBindingPredicate implements UnaryPredicate {
+    private static class HandlerRequestPredicate implements UnaryPredicate {
         public boolean execute(Object o) {
-            return (o instanceof HandlerBinding);
+            return (o instanceof HandlerRequest);
         }
     }
 
@@ -80,7 +80,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
         littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
         exceptionHandlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new ExceptionHandlerRequestPredicate());
-        handlerBindingSubscription = (IncrementalSubscription) blackboard.subscribe(new HandlerBindingPredicate());
+        handlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new HandlerRequestPredicate());
 
         logger.info("ready.");
 
@@ -128,19 +128,21 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         // process any HandlerBindings that may have been posted by the ExceptionHandlerPlugin
         // for each one, we need to create the task for that handler (if any) and post it
-        // so it executes before it's source task
-        for (Enumeration e = handlerBindingSubscription.getAddedList(); e.hasMoreElements();) {
+        // so it executes before its source task
+        for (Enumeration e = handlerRequestSubscription.getAddedList(); e.hasMoreElements();) {
 
-            HandlerBinding binding = (HandlerBinding) e.nextElement();
+            HandlerRequest request = (HandlerRequest) e.nextElement();
+            HandlerBinding binding = request.getHandlerBinding();
+            Task task = request.getTask();
 
             if (binding.getTarget() != null && binding.getTarget() instanceof Step) {
-                logger.info("found handler binding in blackboard for step: " + binding.getSource().getName());
+
+                logger.info("found handler binding in blackboard for task: " + task.getVerb());
 
                 NewTask handlerTask = (NewTask) makeTask((Step)binding.getTarget());
 
-                // insert it into its source's workflow
-                Task parentTask = stepsTable.get(binding.getSource());
-                NewWorkflow parentWorkflow = (NewWorkflow) parentTask.getWorkflow();
+                // insert it into the task's workflow (ie, at the same level as the given task)
+                NewWorkflow parentWorkflow = (NewWorkflow) task.getWorkflow();
 
                 parentWorkflow.addTask(handlerTask);
                 handlerTask.setWorkflow(parentWorkflow);
@@ -148,22 +150,19 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
                 NewConstraint constraint = factory.newConstraint();
 
-
                 if (binding.getControlFlow() == HandlerBinding.RETHROW) {
-                    constraint.setConstrainingTask(parentTask);
+                    constraint.setConstrainingTask(task);
                     constraint.setConstrainedTask(handlerTask);
                 }
                 else {
                     constraint.setConstrainingTask(handlerTask);
-                    constraint.setConstrainedTask(parentTask);
+                    constraint.setConstrainedTask(task);
                 }
 
                 constraint.setConstrainingAspect(AspectType.END_TIME);
                 constraint.setConstrainedAspect(AspectType.START_TIME);
 
                 constraint.setConstraintOrder(Constraint.BEFORE);
-
-
 
                 parentWorkflow.addConstraint(constraint);
             }
@@ -208,36 +207,44 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      * @param checkRequisites true if makeTaskWithRequisites should be called if the step has pre or
      *        post-requisites. This is used mostly so makeTask() can be called from makeTaskWithRequisistes
      *        without going into an infinite loop
-     * @param request not null iff makeTask is being called as a cause of a request by the ExceptionHandlerPlugin,
+     * @param request if not null, we replace the workflow instead of creating a new task (this is used
+     * by the ExceptionHandlerPlugin when restarting tasks, etc)
      * @return a Cougaar Task. If the task has subtasks, the task and its expansion are published
      */
     private Task makeTask(Step step, ExceptionHandlerRequest request, boolean checkRequisites) {
 
         Task task = (request == null ? null : request.getTask());
         if (task == null) {
-            logger.info("creating new task for step " + step.getName());
 
             if (checkRequisites && (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
                 logger.debug("step " + step.getName() + " has pre- or post-requisites");
-                return makeTaskWithRequisites(step);
+                return makeTaskWithRequisites(step, request);
             }
+
+            logger.info("creating new task for step " + step.getName());
 
             task = factory.newTask();
             ((NewTask) task).setVerb(new Verb(step.getName()));
-
 
             ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
                     (new AspectValue(AspectType.END_TIME, getNextEndTime()));
             Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
             ((NewTask) task).setPreference(pref);
 
-
             // add this task to the task->steps table
             stepsTable.put(task, step);
             stepsTable.put(step, task);
         }
         else {
-            logger.info("processing Request for task " + task.getVerb());
+
+            // only for RESTART handlers, if the task has pre-reqs, we call makeTaskWithRequisites()
+            if (request.getType() == ExceptionHandlerRequest.RESTART &&
+                    (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
+                return makeTaskWithRequisites(step, request);
+            }
+
+
+            logger.info("processing ExceptionHandlerRequest for task " + task.getVerb());
 
             // remove the task's current expansion
             if (task.getPlanElement() != null) {
@@ -344,10 +351,11 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     /**
      * Encapsulates a task with pre or post requisistes into a "parent" task that contains as sub-tasks
      * the pre-req, the actual task, and the post-req in sequential order
-     * @param step
+     * @param step the step to create a task for
+     * @param request if not null, instead of creating a new task we replace the workflow for the existing task
      * @return
      */
-    private Task makeTaskWithRequisites(Step step) {
+    private Task makeTaskWithRequisites(Step step, ExceptionHandlerRequest request) {
 
         RequisiteBinding preReqBinding = step.getPrerequisite();
         RequisiteBinding postReqBinding = step.getPostrequisite();
@@ -357,23 +365,33 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             return makeTask(step);
         }
 
-        NewTask parentTask = factory.newTask();
-        parentTask.setVerb(new Verb(step.getName() + "Parent"));
+        Task parentTask = (request != null ? request.getTask() : null);
+        if (parentTask == null) {
+            parentTask = factory.newTask();
+            ((NewTask) parentTask).setVerb(new Verb(step.getName() + "Parent"));
 
-        // There is a particular corner case regarding pre-requisistes and expansions.
-        // If a task with pre-requisite has a RESTART expansion handler, then we
-        // need to handler that in the "parent task" that we are creating,
-        // because otherwise when the task is restarted the pre-requisite will not be run
-        for (Enumeration handlers = step.handlers(); handlers.hasMoreElements();) {
-            HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
-            if (handlerBinding.getControlFlow() == HandlerBinding.RESTART) {
-                stepsTable.put(parentTask, step);
-                break;
+            // There is a particular corner case regarding pre-requisistes and expansions.
+            // If a task with pre-requisite has a RESTART expansion handler, then we
+            // need to handler that in the "parent task" that we are creating,
+            // because otherwise when the task is restarted the pre-requisite will not be run
+            for (Enumeration handlers = step.handlers(); handlers.hasMoreElements();) {
+                HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
+                if (handlerBinding.getControlFlow() == HandlerBinding.RESTART) {
+                    stepsTable.put(parentTask, step);
+                    break;
+                }
+            }
+
+            logger.debug("created parent task " + parentTask.getVerb());
+        }
+        else {
+            logger.info("processing ExceptionHandlerRequest for task " + parentTask.getVerb());
+
+            // remove the task's current expansion
+            if (parentTask.getPlanElement() != null) {
+                blackboard.publishRemove(parentTask.getPlanElement());
             }
         }
-
-        logger.debug("created parent task " + parentTask.getVerb());
-
 
         NewWorkflow workflow = factory.newWorkflow();
 
@@ -454,35 +472,4 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
