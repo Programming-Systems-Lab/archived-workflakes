@@ -1,6 +1,7 @@
 package psl.workflakes.littlejil;
 
 import java.util.Hashtable;
+import java.io.Serializable;
 
 import org.cougaar.planning.ldm.plan.Task;
 import laser.littlejil.Step;
@@ -12,7 +13,7 @@ import laser.littlejil.Step;
  *
  * @author matias
  */
-public class LittleJILStepsTable {
+public class LittleJILStepsTable implements Serializable {
 
     private Hashtable table;
 
