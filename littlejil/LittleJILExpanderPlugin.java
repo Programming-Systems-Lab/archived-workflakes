@@ -14,8 +14,8 @@ import psl.workflakes.littlejil.xmlschema.types.*;
 import java.util.*;
 
 /**
- * This class is just to test posting and getting LittleJIL castor objects
- * from a cougaar blackboard
+ * This plugin parses a LittleJIL diagram and publishes the root task to be expanded
+ * by the ExpanderPlugin
  * @author matias
  */
 
@@ -67,14 +67,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             Diagram diagram = (Diagram) e.nextElement();
             //LittleJILXMLParser.outputDiagram(diagram);
 
-            logger.debug("creating workflow...");
-            Workflow workflow = makeWorkflowFromLittleJIL(diagram);
+            logger.debug("creating tasks...");
+            Task task = makeTasks(diagram);
 
-            AllocationResult ar = null;
-            Task task = workflow.getParentTask();
-            Expansion expansion = factory.createExpansion(task.getPlan(), task, workflow, ar);
-
-            blackboard.publishAdd(expansion);
             blackboard.publishAdd(task);
 
         }
@@ -82,94 +77,82 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     }
 
     /**
-     * Makes a Cougaar worflow, with its associated tasks, subtasks, and constraints, from a Little-JIL diagram
-     * @param diagram the given Little-JIL diagram
-     * @return a Cougaar workflow
+     * This method makes the root Task for a LittleJIL diagram, simply by calling makeTask on the
+     * root Step
+     * @param diagram the LittleJIL diagram
+     * @return the root Task for the diagram, as per makeTask()
      */
-    public Workflow makeWorkflowFromLittleJIL(Diagram diagram) {
+    public Task makeTasks(Diagram diagram) {
 
+        Task rootTask = makeTask((Step)diagram.getRoot());
+
+        return rootTask;
+    }
+
+
+    /**
+     * This method makes a Task from a LittleJIL step, setting the necessary properties and creating
+     * a workflow with the step's substeps (if any).
+     *
+     * WARNING: this method calls itself recursively for each subtask. It will go into an infinite loop
+     * if there's some kind of circular reference... TODO: Should check for that.
+     *
+     * @param step the LittleJIL step to convert
+     * @return a Cougaar Task, with an associated workflow (if necessary)
+     */
+    private NewTask makeTask(Step step) {
+
+        NewTask parentTask = factory.newTask();
+        parentTask.setVerb(new Verb(step.getName()));
+
+        logger.debug("created task" + parentTask.getVerb());
+
+        Substeps substeps = step.getSubsteps();
+        if (substeps == null) {
+            return parentTask;
+        }
+
+        // get subsets of this step and create tasks for those, and a workflow to put them in
         NewWorkflow workflow = factory.newWorkflow();
 
-        // we need to enumerate through the steps twice, because the steps are not necessarily
-        // in any order, and they may refer to substeps that we don't know exist yet
+        // NOTE: I'm assuming that the tasks are returned in the correct order
+        Task lastTask = null;
+        for (Enumeration substepsEnum = substeps.enumerateSubstepBinding(); substepsEnum.hasMoreElements();) {
+            Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
+            NewTask task = makeTask(substep);
 
-        // first we go convert them into Cougaar Task objects, and hash them by step-id
-        Hashtable tasks = new Hashtable(diagram.getStepCount());
-        for (Enumeration steps = diagram.enumerateStep(); steps.hasMoreElements();) {
-            Step step = (Step) steps.nextElement();
-            NewTask task = makeTaskFromStep(step);
+            logger.debug("adding task " + task.getVerb() + " to workflow of task " + parentTask.getVerb());
+            task.setParentTask(parentTask);
+            workflow.addTask(task);
 
-            logger.debug("adding task " + task.getVerb() + " with id " + step.getId());
-            tasks.put(step.getId(), task);
-        }
+            // if the parent step is sequential, set this task so it starts after the previous ends
+            if (step.getKind().getType() == StepKindType.SEQUENTIAL_TYPE && lastTask != null) {
+                logger.debug("making constraint so that task " + task.getVerb() + " goes after " + lastTask.getVerb());
 
-        // now we go through the steps again, this time setting the task parentTask property
-        // to the correct value and the correct Constraints between subtasks
-        for (Enumeration steps = diagram.enumerateStep(); steps.hasMoreElements();) {
-            Step step = (Step) steps.nextElement();
-            if (step.getSubsteps() == null)
-                continue;
+                NewConstraint constraint = factory.newConstraint();
+                constraint.setConstrainingTask(lastTask);
+                constraint.setConstrainingAspect(AspectType.END_TIME);
 
-            Task parentTask = (Task) tasks.get(step.getId());
-            if (parentTask == null) {
-                logger.warn("task for step id " + step.getId() + " not found in tasks table!");
-                continue;
+                constraint.setConstrainedTask(task);
+                constraint.setConstrainedAspect(AspectType.START_TIME);
+
+                constraint.setConstraintOrder(Constraint.BEFORE);
+
+                workflow.addConstraint(constraint);
             }
 
-            Task lastTask = null;
-            for (Enumeration substeps = step.getSubsteps().enumerateSubstepBinding(); substeps.hasMoreElements();) {
-                Step substep = (Step) ((SubstepBinding) substeps.nextElement()).getTarget();
-                NewTask task = (NewTask) tasks.get(substep.getId());
+            // TODO: what do we do for choice and try??? can't really add them here, have to add them later?
 
-                if (task == null) {
-                    logger.warn("task for substep id " + substep.getId() + " not found in tasks table!");
-                    continue;
-                }
-
-                logger.debug("adding task " + task.getVerb() + " to workflow, and setting task " + parentTask.getVerb() + " as parent");
-                task.setParentTask(parentTask);
-                task.setWorkflow(workflow);
-                workflow.addTask(task);
-
-                // if the parent step is sequential, set this task to go after the previous one
-                if (step.getKind().getType() == StepKindType.SEQUENTIAL_TYPE && lastTask != null) {
-                    logger.debug("making constraint so that task " + task.getVerb() + " goes after " + lastTask.getVerb());
-
-                    NewConstraint constraint = factory.newConstraint();
-                    constraint.setConstrainedTask(task);
-                    constraint.setConstrainingTask(lastTask);
-                    constraint.setConstrainingAspect(Constraint.AFTER);
-                }
-
-                // TODO: what do we do for choice and try??? can't really add them here, have to add them later?
-
-                lastTask = task;
-            }
-
-
+            lastTask = task;
         }
 
-        // finally, set the parent step (referenced by the diagram) as the parent of the workflow
-        Task task = (Task) tasks.get(((Step)diagram.getRoot()).getId());
-        if (task != null) {
-            workflow.setParentTask(task);
-        }
-        else {
-            logger.warn("parent task (id " + diagram.getRoot() + " not found in tasks table!");
-        }
-
-        return workflow;
+        parentTask.setWorkflow(workflow);
+        workflow.setParentTask(parentTask);
+        logger.debug("set workflow " + workflow + " to task " + parentTask.getVerb());
+        return parentTask;
     }
 
-    private NewTask makeTaskFromStep(Step step) {
 
-        NewTask task = factory.newTask();
-        task.setVerb(new Verb(step.getName()));
-
-        // TODO set other task properties here (like direct object from resource)
-
-        return task;
-    }
 
 }
 
