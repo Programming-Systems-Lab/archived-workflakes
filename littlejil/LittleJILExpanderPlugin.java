@@ -170,7 +170,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             if (binding.getTarget() != null && binding.getTarget() instanceof Step) {
 
-                logger.info("found handler binding in blackboard for task: " + task.getVerb());
+                logger.debug("found handler binding in blackboard for task: " + task.getVerb());
 
                 NewTask handlerTask = (NewTask) makeTask((Step)binding.getTarget());
 
@@ -276,7 +276,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                 return makeTaskWithRequisites(step, request);
             }
 
-            logger.info("creating new task for step " + step.getName());
+            logger.debug("creating new task for step " + step.getName());
 
             task = factory.newTask();
             ((NewTask) task).setVerb(new Verb(step.getName()));
@@ -298,7 +298,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             }
 
 
-            logger.info("processing ExceptionHandlerRequest for task " + task.getVerb());
+            logger.debug("processing ExceptionHandlerRequest for task " + task.getVerb());
 
             // remove the task's current expansion
             if (task.getPlanElement() != null) {
@@ -378,6 +378,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                         }
                         else {
                             collection = (Collection) o;
+                            logger.info("found resource iterator of size "+ collection.size());
                             iterator = collection.iterator();
                         }
                     }
@@ -415,7 +416,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                     }
                     // if the parent step is sequential, set this task so it starts after the previous ends
                     else if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
-                        logger.info("making constraint so that task " + subtask.getVerb() + " goes after " + lastTask.getVerb());
+                        logger.debug("making constraint so that task " + subtask.getVerb() + " goes after " + lastTask.getVerb());
 
                         NewConstraint constraint = factory.newConstraint();
                         constraint.setConstrainingTask(lastTask);
@@ -451,7 +452,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             // check: if this was a TRY request and we haven't added any tasks, it means there weren't any left
             // and we should post an exception
 
-            logger.info("no more tasks left to try, posting exception");
+            logger.debug("no more tasks left to try, posting exception");
             LittleJILException exception = new LittleJILException(task, "NoMoreAlternativesException");
             blackboard.publishAdd(exception);
         }
@@ -500,7 +501,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             logger.debug("created parent task " + parentTask.getVerb());
         }
         else {
-            logger.info("processing ExceptionHandlerRequest for task " + parentTask.getVerb());
+            logger.debug("processing ExceptionHandlerRequest for task " + parentTask.getVerb());
 
             // remove the task's current expansion
             if (parentTask.getPlanElement() != null) {
@@ -518,7 +519,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         if (preReqBinding != null) {
             // have to create a task for this pre-req and add a constraint so that it goes before
             final Step preReqStep = ((Reference) preReqBinding.getTarget()).refersTo();
-            logger.info("step has prerequisite " + preReqStep.getName() + ", adding constraint");
+            logger.debug("step has prerequisite " + preReqStep.getName() + ", adding constraint");
             NewTask preReqTask = (NewTask) makeTask(preReqStep);
 
             logger.debug("adding pre-req task " + preReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
@@ -548,7 +549,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             // have to create a task for this post-req and add a constraint to it goes after
 
             final Step postReqStep = ((Reference) postReqBinding.getTarget()).refersTo();
-            logger.info("step has postrequisite " + postReqStep.getName() + ", adding constraint");
+            logger.debug("step has postrequisite " + postReqStep.getName() + ", adding constraint");
             NewTask postReqTask = (NewTask) makeTask(postReqStep);
 
             logger.debug("adding post-req task " + postReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());

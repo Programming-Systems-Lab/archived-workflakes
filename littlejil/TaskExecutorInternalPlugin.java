@@ -65,9 +65,9 @@ public class TaskExecutorInternalPlugin extends AbstractTaskExecutorPlugin {
                 taskSucceeded(allocation, outParams);
 
             }
-            catch (Exception e) {
+            catch (Throwable e) {
                 // an error occurred
-                logger.debug("executable for task " + task.getVerb() + " failed with exception " + e);
+                logger.warn("executable for task " + task.getVerb() + " failed with exception " + e);
                 taskFailed(allocation);
                 return;
             }
