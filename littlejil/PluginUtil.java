@@ -1,7 +1,7 @@
 package psl.workflakes.littlejil;
 
-import org.cougaar.planning.ldm.plan.Constraint;
 import org.cougaar.planning.ldm.plan.AspectType;
+import org.cougaar.planning.ldm.plan.Constraint;
 
 /**
  * 

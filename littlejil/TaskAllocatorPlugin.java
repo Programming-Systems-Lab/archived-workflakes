@@ -1,18 +1,16 @@
 package psl.workflakes.littlejil;
 
+import java.util.Enumeration;
+
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
+import org.cougaar.core.domain.RootFactory;
 import org.cougaar.core.plugin.ComponentPlugin;
 import org.cougaar.core.service.*;
-import org.cougaar.core.domain.RootFactory;
-import org.cougaar.util.UnaryPredicate;
 import org.cougaar.planning.ldm.plan.*;
-import psl.workflakes.littlejil.xmlschema.*;
-import psl.workflakes.littlejil.xmlschema.types.*;
-
-import java.util.*;
-
-import psl.workflakes.littlejil.assets.*;
+import org.cougaar.util.UnaryPredicate;
+import psl.workflakes.littlejil.assets.ExecAgentAsset;
+import psl.workflakes.littlejil.assets.PropertyGroupFactory;
 
 /**
  * This class should get tasks posted on a blackboard and allocate them according to

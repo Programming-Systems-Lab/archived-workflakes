@@ -1,26 +1,15 @@
 package psl.workflakes.littlejil;
 
-import org.cougaar.core.servlet.SimpleServletSupport;
-import org.cougaar.core.servlet.BlackboardServletSupport;
-import org.cougaar.core.servlet.BaseServletComponent;
-import org.cougaar.core.service.BlackboardService;
-import org.cougaar.core.blackboard.BlackboardClient;
-import org.cougaar.core.blackboard.SubscriberException;
-import org.apache.log4j.Logger;
-
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.Servlet;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
 
 import laser.littlejil.Diagram;
 import laser.littlejil.Program;
+import org.apache.log4j.Logger;
+import org.cougaar.core.blackboard.BlackboardClient;
+import org.cougaar.core.service.BlackboardService;
+import org.cougaar.core.servlet.BaseServletComponent;
 
 /**
  * Servlet that can load Little-JIL diagrams into the blackboard. Mostly for testing

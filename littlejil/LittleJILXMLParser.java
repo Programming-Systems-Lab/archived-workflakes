@@ -1,14 +1,11 @@
 
 package psl.workflakes.littlejil;
 
-import org.apache.log4j.Logger;
-import psl.workflakes.littlejil.xmlschema.Program;
-import psl.workflakes.littlejil.xmlschema.Diagram;
-import psl.workflakes.littlejil.xmlschema.Step;
-import psl.workflakes.littlejil.xmlschema.SubstepBinding;
-
 import java.io.*;
 import java.util.Enumeration;
+
+import org.apache.log4j.Logger;
+import psl.workflakes.littlejil.xmlschema.*;
 
 /*
  * This class parses an XML Little-JIL document into classes that
