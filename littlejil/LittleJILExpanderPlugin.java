@@ -66,23 +66,11 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             logger.info("found diagram in blackboard: " + diagram.getName());
 
             logger.debug("creating tasks...");
-            Task task = makeTasks(diagram);
+
+            makeTask(diagram.getRootStep());
 
         }
 
-    }
-
-    /**
-     * This method makes the root Task for a LittleJIL diagram, simply by calling makeTask on the
-     * root Step
-     * @param diagram the LittleJIL diagram
-     * @return the root Task for the diagram, as per makeTask()
-     */
-    public Task makeTasks(Diagram diagram) {
-
-        Task rootTask = makeTask(diagram.getRootStep());
-
-        return rootTask;
     }
 
 
