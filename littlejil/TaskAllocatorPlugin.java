@@ -74,28 +74,7 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
         for (Enumeration tasks = leafTasksSubscription.getAddedList(); tasks.hasMoreElements();) {
             Task task = (Task) tasks.nextElement();
 
-            logger.debug("got task " + task.getVerb() + ", will allocate...");
-
-            /*Preference end_time_pref = task.getPreference(AspectType.END_TIME);
-            if (end_time_pref == null) {
-                logger.debug("task has no end_time_pref!");
-                continue;
-            }
-
-            int end = (int) end_time_pref.getScoringFunction().getBest().getValue();
-
-            AllocationResult estAR = null;
-
-            // Create an estimate that reports that we did just what we were asked to do
-
-            boolean onTime = true;
-            int[] aspect_types = {AspectType.END_TIME};
-            double[] results = {end};
-            estAR = factory.newAllocationResult(1.0, //rating
-                    onTime, // success or not
-                    aspect_types,
-                    results);
-*/
+            // TODO: use a real execution agent
             ExecAgentAsset asset = (ExecAgentAsset) factory.createInstance("ExecAgent");
             Allocation allocation = factory.createAllocation(task.getPlan(), task, asset, null, Role.ASSIGNED);
 

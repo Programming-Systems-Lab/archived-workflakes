@@ -88,7 +88,7 @@ public class TaskExecutorPlugin extends ComponentPlugin {
             Asset asset = allocation.getAsset();
 
             int waitTime = random.nextInt(3)+2;
-            logger.info("executing task " + task.getVerb() + ", will be done in " + waitTime + " seconds.");
+            logger.info(">>> executing task " + task.getVerb() + ", will be done in " + waitTime + " seconds.");
 
             // "wait for task to be done"
             try {
@@ -113,7 +113,7 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
             // have to do this inside a transaction, since we are not in the execute() method
             try {
-                logger.info("task " + task.getVerb() + " finished. updating allocation result");
+                logger.info(">>> task " + task.getVerb() + " finished. updating allocation result");
                 blackboard.openTransaction();
 
                 allocation.setEstimatedResult(result);
