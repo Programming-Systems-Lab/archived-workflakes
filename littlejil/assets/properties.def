@@ -14,6 +14,7 @@ doc=properties of an executor agent
 slots=String capabilities, String execId
 capabilities.doc=executable tasks of the executor
 execId.doc=identification of the PlugIn originating the asset
+params.doc=parameters and values to be passed to the agent
 
 [WVMPG]
 doc=properties identifying a WVM for requesting a junction

@@ -265,14 +265,12 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                 assert(parentDeclaration.getParameterValue() != null);
 
-                if (parentDeclaration.getParameterValue() == childDeclaration.getParameterValue()) {
-                    logger.warn("values already equal");
+                if (parentDeclaration.getParameterValue() != childDeclaration.getParameterValue()) {
+                    childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
+
+                    logger.debug("in param " + childDeclaration.getName() +
+                                 " set to " + childDeclaration.getParameterValue());
                 }
-
-                childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
-
-                logger.debug("in param " + childDeclaration.getName() +
-                        " set to " + childDeclaration.getParameterValue());
             }
         }
     }
