@@ -30,6 +30,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     private IncrementalSubscription diagramSubscription;
     private IncrementalSubscription stepSubscription;
     private IncrementalSubscription littleJILStepsTableSubscription;
+    private IncrementalSubscription exceptionHandlerRequestSubscription;
 
     private DomainService domainService;
     private RootFactory factory;
@@ -38,6 +39,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     // the "end time" for new tasks, which keeps increasing...
     private static double endTime = 1.0;
+
 
 
     /**
@@ -66,12 +68,19 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
     }
 
+    private static class ExceptionHandlerRequestPredicate implements UnaryPredicate {
+        public boolean execute(Object o) {
+            return (o instanceof ExceptionHandlerRequest);
+        }
+    }
+
     public void setupSubscriptions() {
 
         // set up the subscription to get diagrams
         diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
         stepSubscription = (IncrementalSubscription) blackboard.subscribe(new StepPredicate());
         littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
+        exceptionHandlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new ExceptionHandlerRequestPredicate());
 
         logger.info("ready.");
 
@@ -125,13 +134,20 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             logger.info("found step in blackboard: " + step.getName());
 
             // TODO: if this step already has a task associated with it, then modify that task
-            Task task = stepsTable.get(step);
+            /*Task task = stepsTable.get(step);
             if (task != null) {
                 makeTask(step, task, true);
             }
             else {
                 makeTask(step);
-            }
+            }*/
+
+        }
+
+        for (Enumeration e = exceptionHandlerRequestSubscription.getAddedList(); e.hasMoreElements();) {
+
+            ExceptionHandlerRequest request = (ExceptionHandlerRequest) e.nextElement();
+            makeTask(request.getStep(), request, true);
 
         }
 
@@ -163,17 +179,17 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      * @param checkRequisites true if makeTaskWithRequisites should be called if the step has pre or
      *        post-requisites. This is used mostly so makeTask() can be called from makeTaskWithRequisistes
      *        without going into an infinite loop
-     * @param task if this is a step that is being restarted, an existing task can be given so that
-     *        the new workflow is set to that task and a new one is not created
+     * @param request not null iff makeTask is being called as a cause of a request by the ExceptionHandlerPlugin,
      * @return a Cougaar Task. If the task has subtasks, the task and its expansion are published
      */
-    private Task makeTask(Step step, Task task, boolean checkRequisites) {
+    private Task makeTask(Step step, ExceptionHandlerRequest request, boolean checkRequisites) {
 
         if (checkRequisites && (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
             logger.debug("step " + step.getName() + " has pre- or post-requisites");
             return makeTaskWithRequisites(step);
         }
 
+        Task task = (request == null ? null : request.getTask());
         if (task == null) {
             logger.info("creating new task " + step.getName());
             task = factory.newTask();
@@ -211,6 +227,15 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         Task lastTask = null;
         for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
             Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
+
+            if (request != null) {
+                if (request instanceof ContinueRequest) {
+                    if (!((ContinueRequest) request).isIncomplete(substep)) {
+                        logger.debug("skipping adding task " + substep.getName());
+                        continue;   // skip this task, since it's already been completed
+                    }
+                }
+            }
 
             // recursive call to create this task -- this will create the task's subtasks, etc
             NewTask subtask = (NewTask) makeTask(substep);
