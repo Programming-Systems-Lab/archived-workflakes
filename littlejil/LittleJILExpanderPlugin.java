@@ -8,10 +8,15 @@ import org.cougaar.core.service.DomainService;
 import org.cougaar.core.domain.RootFactory;
 import org.cougaar.util.UnaryPredicate;
 import org.cougaar.planning.ldm.plan.*;
-import psl.workflakes.littlejil.xmlschema.*;
-import psl.workflakes.littlejil.xmlschema.types.*;
+//import psl.workflakes.littlejil.xmlschema.*;
+//import psl.workflakes.littlejil.xmlschema.types.*;
+
+import laser.littlejil.*;
 
 import java.util.*;
+import java.io.ObjectInputStream;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 
 /**
  * This plugin parses a LittleJIL diagram and publishes the root task to be expanded
@@ -20,7 +25,7 @@ import java.util.*;
  */
 
 public class LittleJILExpanderPlugin extends ComponentPlugin {
-    private static final String DIAGRAM_FILENAME = "test-diagram.xml";
+    private static final String DIAGRAM_FILENAME = "test-diagram";
 
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);
     private IncrementalSubscription diagramSubscription;
@@ -41,7 +46,12 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         Diagram diagram = null;
         try {
-            diagram = LittleJILXMLParser.loadDiagram(DIAGRAM_FILENAME);
+            ObjectInputStream objIn = new ObjectInputStream(
+                    new BufferedInputStream(new FileInputStream(DIAGRAM_FILENAME)));
+
+            Program program = (Program) objIn.readObject();
+            diagram = program.getRootDiagram();
+
         } catch (Exception e) {
             logger.fatal("Could not load diagram: " + e);
             return;
@@ -84,7 +94,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      */
     public Task makeTasks(Diagram diagram) {
 
-        Task rootTask = makeTask((Step)diagram.getRoot());
+        Task rootTask = makeTask(diagram.getRootStep());
 
         return rootTask;
     }
@@ -95,7 +105,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      * a workflow with the step's substeps (if any).
      *
      * WARNING: this method calls itself recursively for each subtask. It will go into an infinite loop
-     * if there's some kind of circular reference... TODO: Should check for that.
+     * if there's some kind of circular reference... TODO: might want to check for that.
      *
      * @param step the LittleJIL step to convert
      * @return a Cougaar Task, with an associated workflow (if necessary)
@@ -105,19 +115,14 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         NewTask parentTask = factory.newTask();
         parentTask.setVerb(new Verb(step.getName()));
 
-        logger.debug("created task" + parentTask.getVerb());
-
-        Substeps substeps = step.getSubsteps();
-        if (substeps == null) {
-            return parentTask;
-        }
+        logger.debug("created task " + parentTask.getVerb());
 
         // get subsets of this step and create tasks for those, and a workflow to put them in
         NewWorkflow workflow = factory.newWorkflow();
 
         // NOTE: I'm assuming that the tasks are returned in the correct order
         Task lastTask = null;
-        for (Enumeration substepsEnum = substeps.enumerateSubstepBinding(); substepsEnum.hasMoreElements();) {
+        for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
             Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
             NewTask task = makeTask(substep);
 
@@ -126,7 +131,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             workflow.addTask(task);
 
             // if the parent step is sequential, set this task so it starts after the previous ends
-            if (step.getKind().getType() == StepKindType.SEQUENTIAL_TYPE && lastTask != null) {
+            if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
                 logger.debug("making constraint so that task " + task.getVerb() + " goes after " + lastTask.getVerb());
 
                 NewConstraint constraint = factory.newConstraint();
@@ -141,14 +146,17 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                 workflow.addConstraint(constraint);
             }
 
-            // TODO: what do we do for choice and try??? can't really add them here, have to add them later?
+            // TODO: choice and try
+            // TODO: pre and post requisites
 
             lastTask = task;
         }
 
-        parentTask.setWorkflow(workflow);
-        workflow.setParentTask(parentTask);
-        logger.debug("set workflow " + workflow + " to task " + parentTask.getVerb());
+        if (lastTask != null) {
+            parentTask.setWorkflow(workflow);
+            workflow.setParentTask(parentTask);
+            logger.debug("set workflow " + workflow + " to task " + parentTask.getVerb());
+        }
         return parentTask;
     }
 
