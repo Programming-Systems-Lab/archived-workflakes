@@ -32,6 +32,11 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     private DomainService domainService;
     private RootFactory factory;
 
+    private static double endTime = 1.0;
+        // the "end time" for the tasks, which keeps increasing...
+        // TODO: make sure there are no issues with sharing this among different workflows
+        // (intuitively there shouldn't be since later tasks will always have a later end time)
+
     /**
      * Used by the binding utility through reflection to set my DomainService
      */
@@ -96,7 +101,14 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         NewTask parentTask = factory.newTask();
         parentTask.setVerb(new Verb(step.getName()));
 
-        logger.debug("created task " + parentTask.getVerb());
+        // TODO: should I use different END_TIME prefs? mhmm...
+        ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
+                (new AspectValue(AspectType.END_TIME, endTime));
+        Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
+        parentTask.setPreference(pref);
+
+        logger.debug("created task " + parentTask.getVerb() + " with end_time" + endTime);
+        endTime++;
 
         // get subsets of this step and create tasks for those, and a workflow to put them in
         NewWorkflow workflow = factory.newWorkflow();
@@ -111,12 +123,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             task.setParentTask(parentTask);
             workflow.addTask(task);
             task.setWorkflow(workflow);
-
-            // TODO: should I use different END_TIME prefs? mhmm...
-            ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
-                    (new AspectValue(AspectType.END_TIME, 1.0));
-            Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
-            task.setPreference(pref);
 
             // if the parent step is sequential, set this task so it starts after the previous ends
             if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
@@ -135,23 +141,24 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             }
 
-            // TODO: choice and try
-
             if (substep.getPrerequisite() != null) {
+                // have to create a task for this pre-req and add a constraint to it goes before
+                // the current task we are looking at
                 final Step preReqStep = ((Reference) substep.getPrerequisite().getTarget()).refersTo();
                 logger.info("step has prerequisite " + preReqStep.getName() + ", adding constraint");
                 NewTask preReqTask = makeTask(preReqStep);
                 preReqTask.setPreference(pref);
 
-                scorefcn = ScoringFunction.createStrictlyAtValue
+                /*scorefcn = ScoringFunction.createStrictlyAtValue
                     (new AspectValue(AspectType.END_TIME, 0.5));
                 pref = factory.newPreference(AspectType.END_TIME, scorefcn);
-                preReqTask.setPreference(pref);
+                preReqTask.setPreference(pref);*/
 
+                logger.debug("adding pre-req task " + preReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
                 workflow.addTask(preReqTask);
                 preReqTask.setWorkflow(workflow);
 
-                // add constraint so that this task gets done before
+                // add constraint so that this task gets done before the task of which it is a pre-req
                 NewConstraint constraint = factory.newConstraint();
                 constraint.setConstrainingTask(preReqTask);
                 constraint.setConstrainingAspect(AspectType.END_TIME);
@@ -164,6 +171,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                 workflow.addConstraint(constraint);
 
             }
+
+            // TODO: choice and try
 
             lastTask = task;
         }
