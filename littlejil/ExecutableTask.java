@@ -4,7 +4,7 @@ import java.util.Hashtable;
 
 /**
  * This interface is implemented by classes that can be used to execute Little-JIL tasks via
- * the TaskExecutorInternalPlugin.
+ * the TaskExecutorClassPlugin.
  *
  * @author matias@cs.columbia.edu
  */

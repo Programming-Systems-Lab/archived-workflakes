@@ -14,9 +14,20 @@ import laser.littlejil.ParameterBinding;
 import laser.littlejil.ParameterDeclaration;
 
 /**
- * This class gets tasks posted on a blackboard and expand their workflows as necessary.
+ * This plugin is in charge of processing the Task expansions that the
+ * <code>LittleJILExpanderPlugin</code> posts. It subscribes to expandable (i.e.
+ * non-leaf) tasks. When executed, it does two main things: for all the
+ * expansions, it checks if a constraint has been satisfied (for example, after
+ * the first of a sequential set of leaf tasks has completed), and if so it
+ * posts the next available leaf task for that expansion. It also checks to see
+ * if expansions that have not been started yet have any more constraints
+ * imposed on them (for example, a parent task that comes sequentially after
+ * another parent task). If there are no more constraints, it publishes the
+ * child tasks of the expansion as necessary.
  *
- *
+ *  The <code>TaskExpanderPlugin</code> also sets the in and out parameters of
+ *  leaf tasks as necessary, and provides methods for listeners to subscribe to
+ *  events such as "task started" or "task completed".
  *
  * @author matias
  */

@@ -14,8 +14,11 @@ import org.cougaar.util.UnaryPredicate;
 import psl.workflakes.littlejil.assets.*;
 
 /**
- * This class should get tasks posted on a blackboard and allocate them according to
- * the given workflow
+ * This plugin subscribes to leaf tasks and for each one it allocates an
+ * <code>ExecAgentAsset</code> to it and publishes the allocation. Its
+ * <code>findExecAgent</code> method can be overriden by a subclass to provide
+ * for better finding. At the moment it just matches the task name against the
+ * ExecAgent's "capabilities" property.
  * @author matias
  */
 
@@ -90,7 +93,7 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
             executorPG.setCapabilities("any");
 
             NewClassPG classPG = (NewClassPG) factory.createPropertyGroup("ClassPG");
-            //classPG.setClassName("psl.workflakes.littlejil.TaskExecutorInternalPlugin$DummyExecutableTask");
+            //classPG.setClassName("psl.workflakes.littlejil.TaskExecutorClassPlugin$DummyExecutableTask");
             classPG.setClassName("psl.ai2tv.workflow.AI2TVPlugin$DummyExecutableTask");
             asset.setExecutorPG(executorPG);
             asset.setClassPG(classPG);
@@ -127,6 +130,9 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
             } catch (PluginException e) {
                 logger.warn("Could not find asset for task " + task.getVerb() + ": " + e);
                 logger.warn("Not publishing task");
+
+                // publish littleJil exception
+                blackboard.publishAdd(new LittleJILException(task, "ExecAgentAssetNotFound"));
             }
 
 

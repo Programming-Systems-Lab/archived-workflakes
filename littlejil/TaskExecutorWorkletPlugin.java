@@ -14,9 +14,18 @@ import java.io.Serializable;
 import java.util.Hashtable;
 
 /**
- * This plugin uses a Worklet to execute task.
  *
- * NOTE: currently, all tasks are executed using a TaskMonitor Worklet Junction.
+ * This plugin extends the <code>AbstractTaskExecutorPlugin</code> and
+ * subscribes to <code>ExecWorkletAssetAsset</code>s. It implements the
+ * <code>executeTask</code> method so that a <a class="ref"
+ * href="ref">Worklet</a> is launched to execute the given task.
+ *
+ * At the moment this plugin is used mostly for testing purposes. For example,
+ * it always uses a <code>TaskMonitorJunction</code> worklet junction that is
+ * intended to go to a running instance of a <code>TaskMonitor</code> or
+ * <code>TaskMonitorGUI</code>. In reality it should use the junction that is
+ * specified as part of the <code>ExecWorkletAssetAsset</code> for the task.
+ *
  *
  * The following system properties should be set:
  *     psl.workflakes.littlejil.useWorklets: true if worklets should be used

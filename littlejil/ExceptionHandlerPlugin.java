@@ -16,19 +16,33 @@ import laser.littlejil.HandlerBinding;
 import laser.littlejil.Step;
 
 /**
- * This class handles exceptions thrown when executing a task.
+ * This plugin handles exceptions that occur in the LittleJIL workflow.
+ * Exceptions are thrown by plugins by publishing
+ * <code>LittleJILException</code> objects. In general exceptions are thrown
+ * when a task fails, or when a resource or execution agent asset cannot be
+ * found.
  *
- * Exceptions are thrown by publishing a LittleJILException object, to which this plugin subscribes.
- * When an exception is received:
- *  - if it was thrown by a child task, any other child tasks that depended on that one are removed
- *      NOTE that this means that if a task has parallel sequencing, then the other substeps will still
- *      run (i.e., will not be removed). This seems to follow the LittleJIL language report v1.0
- *  - the exception handler is retrieved. at the moment only the first one is considered
- *  - the rest corresponds to the behavior of the exception handler (restarting, continuing, completing, rethrowing)
+ * There are four different types of exception handlers in LittleJIL:
+ * <em>restart</em>, <em>continue</em>, <em>complete</em>, and <em>rethrow</em>
+ * (see the <a class="ref" href="#ref">LittleJIL reference</a> for details).
+ * This plugin handles all four types. For restart, continue, and complete, it
+ * works in general by aborting the expansion where the failed task is (thus
+ * preventing more sibling tasks from running), and sending an
+ * <code>ExceptionHandlerRequest</code> to the
+ * <code>LittleJILExpanderPlugin</code> for the task to be republished as
+ * necessary. If a task fails and an exception handler cannot be found, the
+ * exception is re-thrown to the parent task.
  *
+ * Exceptions are thrown by publishing a LittleJILException object, to which
+ * this plugin subscribes. When an exception is received: if it was thrown by a
+ * child task, any other child tasks that depended on that one are removed NOTE
+ * that this means that if a task has parallel sequencing, then the other
+ * substeps will still run (i.e., will not be removed). This seems to follow the
+ * LittleJIL language report v1.0 the exception handler is retrieved. at the
+ * moment only the first one is considered the rest corresponds to the behavior
+ * of the exception handler (restarting, continuing, completing, rethrowing)
  *
- *
- * Implementing the PrivilegedClaimant interface allows this plugin to remove expansion that were
+ * Note: Implementing the PrivilegedClaimant interface allows this plugin to remove expansion that were
  * posted by other plugins
  *
  * @author matias

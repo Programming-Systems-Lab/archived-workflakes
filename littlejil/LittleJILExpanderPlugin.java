@@ -12,17 +12,22 @@ import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
 
 /**
- * This plugin parses a LittleJIL diagram and publishes the root task to be expanded
- * by the ExpanderPlugin.
- *
- * It subscribes to Little-JIL diagrams, and requests from other plugins (like TaskExpander
- * and ExceptionHandler) when tasks need to be re-posted, etc.
+ * The <code>LittleJILExpanderPlugin</code> subscribes to LittleJIL
+ * <code>Diagram</code> objects. For each diagram, it gets the root task and
+ * calls the internal <code>makeTask</code> method. <code>makeTask</code>
+ * creates a Cougaar Task object for the given LittleJIL step, and then
+ * recursively calls <code>makeTask</code> for each of the substeps of the
+ * current step. As it calls <code>makeTask</code> it sets the constraints
+ * appropriately if the step is of sequential kind. It also handles step
+ * cardinality, and has special cases for <em>choice</em> tasks and for
+ * restarting tasks with <em>continue</em> exception handlers. For tasks with
+ * pre- or post-requisites, the method <code>makeTaskWithRequisites</code> is
+ * called, which creates a "parent" task with the requisites and the actual
+ * tasks as subtasks.
  *
  * It also keeps a table that maps between Tasks and Steps in the blackboard.
- *
  * @author matias
  */
-
 public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);

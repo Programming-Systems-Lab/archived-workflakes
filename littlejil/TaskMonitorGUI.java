@@ -15,8 +15,11 @@ import java.awt.*;
 import java.util.Vector;
 
 /**
+ * This GUI can be used to test the TaskExecutorWorkletPlugin. As it receives worklets for each task,
+ * the user can choose whether the task succeeds or fails. The worklet is then shipped back to the Executor plugin
+ * to report on the outcome.
  *
- * @author  Matias
+ * @author  matias
  */
 public class TaskMonitorGUI extends javax.swing.JFrame implements TaskMonitor {
 
