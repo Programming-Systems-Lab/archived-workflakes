@@ -136,10 +136,16 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             }
 
             // TODO: choice and try
+
             if (substep.getPrerequisite() != null) {
                 final Step preReqStep = ((Reference) substep.getPrerequisite().getTarget()).refersTo();
-                logger.info("step has prerequisite " + preReqStep.getName() + " adding constraint");
+                logger.info("step has prerequisite " + preReqStep.getName() + ", adding constraint");
                 NewTask preReqTask = makeTask(preReqStep);
+                preReqTask.setPreference(pref);
+
+                scorefcn = ScoringFunction.createStrictlyAtValue
+                    (new AspectValue(AspectType.END_TIME, 0.5));
+                pref = factory.newPreference(AspectType.END_TIME, scorefcn);
                 preReqTask.setPreference(pref);
 
                 workflow.addTask(preReqTask);
