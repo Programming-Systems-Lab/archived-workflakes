@@ -85,7 +85,7 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
             Step failedStep = null;
             if (exception.getNestedException() != null) {
                 failedTask = exception.getNestedException().getTask();
-                failedStep = stepsTable.get(failedTask);
+                failedStep = stepsTable.getStep(failedTask);
             }
 
 
@@ -94,7 +94,7 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
             // and not in the parent task (ie the stepsTable.get(parent task) will be null)
             // however, there is a 'corner case' with RESTART handlers, where we have to handler it at the
             // "parent task" level so that the pre-req will be executed.
-            Step step = stepsTable.get(task);
+            Step step = stepsTable.getStep(task);
             Enumeration handlers = (step == null ? null : step.handlers());
             if (handlers != null && handlers.hasMoreElements()) {
 
