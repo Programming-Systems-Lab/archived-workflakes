@@ -31,15 +31,13 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
     private static final Logger logger = Logger.getLogger(TaskExecutorPlugin.class);
 
-    private static Random random = new Random();
-
     private IncrementalSubscription allocationsSubscription;
     private DomainService domainService;
     private static RootFactory factory;
 
     private static BlackboardService blackboard;
 
-    private static Hashtable allocationsTable;
+    private static Hashtable allocationsTable;   // used to keep track of allocations for tasks being sent to the TaskMonitor
 
     private static final int WVM_PORT = 9101;
     private static final String RMINAME = "TaskExecutorPluginWVM";
@@ -109,7 +107,12 @@ public class TaskExecutorPlugin extends ComponentPlugin {
             Allocation allocation = (Allocation) allocations.nextElement();
             allocationsTable.put(allocation.getUID().toString(), allocation);
 
-            if (useWorklets) {
+            if (allocation.getTask().getVerb() == LittleJILExpanderPlugin.DUMMY_TASK) {
+                // this is a "dummy" task (used for COMPLETE handlers), just set it as success
+                // (was using processAllocation directly, but that method assumes we are not in a bb transaction)
+                (new ExecutionThread(allocation)).start();
+            }
+            else if (useWorklets) {
                 // create a worklet junction that will "perform this task"
                 ReturnJunction returnJunction = new ReturnJunction(allocation.getUID().toString(),wvmHostname, RMINAME, WVM_PORT);
                 Worklet worklet = new Worklet(returnJunction);
