@@ -256,9 +256,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         NewWorkflow workflow = factory.newWorkflow();
         Task lastTask = null;
 
-        if (request != null &&
-                request.getType() == ExceptionHandlerRequest.COMPLETE
-                ) {
+        if (request != null && request.getType() == ExceptionHandlerRequest.COMPLETE) {
             // create a "dummy" task, that will always be "executed" by the ExecutorPlugin, and put in the workflow
             NewTask dummyTask= factory.newTask();
             dummyTask.setVerb(DUMMY_TASK);
@@ -278,6 +276,18 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             // get subsets of this step and create tasks for those, and put them in the workflow
             // NOTE: tasks are returned in the correct order (according to Little-JIL API docs)
             boolean continueFlag = false;   // (only if request is ContinueRequest) indicates that tasks should be now added
+            ChoiceAnnotation choiceAnnotation = null;   // used only for Choice steps
+
+            if (step.getStepKind() == Step.CHOICE) {
+                choiceAnnotation = new ChoiceAnnotation();
+            }
+            else if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
+                // the parent has a choice annotation, so make its subtasks have one that links
+                // to the parent. this is because otherwise the subtasks get posted and they don't
+                // "respect" the choice that is made on the parent task
+                choiceAnnotation = new ChoiceAnnotation((ChoiceAnnotation) task.getAnnotation());
+            }
+
             for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
                 Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
 
@@ -293,6 +303,11 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
                 // recursive call to create this task -- this will create the task's subtasks, etc
                 NewTask subtask = (NewTask) makeTask(substep);
+
+                if (choiceAnnotation != null) {
+                    choiceAnnotation.addTask(subtask);
+                    subtask.setAnnotation(choiceAnnotation);
+                }
 
                 logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
                 subtask.setParentTask(task);

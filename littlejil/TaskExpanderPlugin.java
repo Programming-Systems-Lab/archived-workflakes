@@ -1,7 +1,6 @@
 package psl.workflakes.littlejil;
 
 import java.util.Enumeration;
-import java.util.Vector;
 
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
@@ -10,10 +9,9 @@ import org.cougaar.core.plugin.util.PluginHelper;
 import org.cougaar.core.service.DomainService;
 import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
-import laser.littlejil.Step;
 
 /**
- * This class should get tasks posted on a blackboard and expand their workflows as necessary
+ * This class gets tasks posted on a blackboard and expand their workflows as necessary
  * @author matias
  */
 
@@ -107,14 +105,6 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                     Task constrainedTask = constraint.getConstrainedTask();
 
-                    /*// first check if this is a choice or try task, in which case we actually
-                    // don't want to run any more of these tasks
-                    // TODO: in progress
-                    Step step = stepsTable.get(workflow.getParentTask());
-                    if (step.getStepKind() == Step.CHOICE || step.getStepKind() == Step.TRY) {
-                        continue;
-                    }*/
-
 
                     // we've resolved this constraint, but before we continue, we should check if
                     // there aren't more constraints for this task that have not been resolved
@@ -182,7 +172,39 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                         break;
                     }
                 }
+
                 if (!constrained) {
+
+                    // if this is a subtask of a CHOICE task, check here if we chose it or not
+                    // NOTE: eventually, we might want to use some actual logic here, instead of random
+                    if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
+
+                        logger.debug("task " + task.getVerb() + " is part of choice group");
+
+                        boolean shouldChoose = ((ChoiceAnnotation)task.getAnnotation()).shouldChoose(task);
+
+                        if (!shouldChoose) {
+                            logger.debug("not choosing it");
+
+                            // remove from workflow
+                            ((NewWorkflow)workflow).removeTask(task);
+
+                            continue;
+                        }
+                        else {
+                            logger.debug("choosing it!");
+                            // we choose this one, but then we should remove all other subtasks from
+                            // the workflow
+                            for (Enumeration e = workflow.getTasks(); e.hasMoreElements(); ) {
+                                Task t = (Task) e.nextElement();
+                                if (t != task) {
+                                    ((NewWorkflow)workflow).removeTask(t);
+                                }
+                            }
+                        }
+
+                    }
+
                     logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
                     blackboard.publishAdd(task);
                 }
