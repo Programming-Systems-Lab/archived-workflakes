@@ -85,7 +85,7 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
 
         // TEMPORARY: create exec agents
         {
-            ExecClassAgentAsset asset = (ExecClassAgentAsset) factory.createInstance("ExecClassAgent");
+            /*ExecClassAgentAsset asset = (ExecClassAgentAsset) factory.createInstance("ExecClassAgent");
             NewExecutorPG executorPG = (NewExecutorPG) factory.createPropertyGroup("ExecutorPG");
             executorPG.setCapabilities("any");
 
@@ -95,7 +95,7 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
             asset.setExecutorPG(executorPG);
             asset.setClassPG(classPG);
 
-            blackboard.publishAdd(asset);
+            blackboard.publishAdd(asset);*/
         }
 
         /*{
