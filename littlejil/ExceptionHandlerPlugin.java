@@ -118,8 +118,8 @@ public class ExceptionHandlerPlugin extends ComponentPlugin {
                 removeDependentTasks(failedTask, workflow, newWorkflow);
 
                 logger.debug("after removeDependentTasks, got workflow " + newWorkflow);
-
                 blackboard.publishRemove(task.getPlanElement());
+
             }
 
 
