@@ -33,7 +33,7 @@ class isDevTaskPredicate implements UnaryPredicate {
    		Task t = (Task)o;
 		ret = t.getVerb().equals(Verb.getVerb("CODE"));
 	}
-	return ret;   
+	return ret;
   }
 }
 
@@ -49,16 +49,16 @@ class isProgrammerPredicate implements UnaryPredicate{
 /*class ExampleJunction
 	extends WorkletJunction {
 	private Class appClass = null;
-	
+
 	ExampleJunction (String host, String name, int port) {
 		super (host, name, port);
 		try {
 			appClass = Class.forName("DummyApp");
 		} catch (ClassNotFoundException e) {}
-	
+
 		System.out.println ("Going to: " + name + " on " + host +":" + port);
 	}
-		
+
   	public void execute() {
     	System.out.println("a worklet has arrived ... ");
     	System.out.println(" of class " + getClass().getName());
@@ -69,7 +69,7 @@ class isProgrammerPredicate implements UnaryPredicate{
 	}
 }
 */
-	
+
 public class DevelopmentAllocatorPlugIn
 	extends WorkletPlugIn
 	implements DevAllocAdaptorInf
@@ -80,12 +80,12 @@ public class DevelopmentAllocatorPlugIn
 	protected void setupSubscriptions()
 	{
 		super.setupSubscriptions();
-		
+
 		System.out.println("DevelopmentAllocatorPlugIn - in setupSubscriptions()");
 		myHackers = (IncrementalSubscription)subscribe(new isProgrammerPredicate());
 		//requireJunction ("psl.workflakes.exercise.tutorial.DevAllocAdaptorInf", new isDevTaskPredicate());
-			
-		/*		
+
+		/*
 		Worklet wkl = new Worklet(null);
 		ExampleJunction request = new ExampleJunction ("ibm9151", "Management", 9101);
 		wkl.addJunction(request);
@@ -93,16 +93,16 @@ public class DevelopmentAllocatorPlugIn
 		*/
 		System.out.println("DevelopmentAllocatorPlugIn - out of setupSubscriptions()");
 	}
-		
+
 	protected void execute()
 	{
-		super.execute();		
+		super.execute();
 	}
 
 
 	// implementation of DevAllAdaptorInf
 	public Collection getProgrammers() { return myHackers.getCollection(); }
-	
+
 	public void allocateAsset (Task task, Asset asset) {
 		publishChange(asset);
 
@@ -112,4 +112,10 @@ public class DevelopmentAllocatorPlugIn
       publishAdd(allocation);
 	}
 
+        //fake - unused
+        public Enumeration getExecutors() { return null; }
+        //fake - unused
+        public void setAllocJunction(AllocatorJunction j) { }
+        //fake - unused
+        public void allocateTask (Task t, double time) { }
 }

@@ -1,6 +1,6 @@
 @echo OFF
 
-set PSL_HOME=C:\valetto\columbia
+set PSL_HOME=C:\pslcvs
 set ALP_INSTALL_PATH=%PSL_HOME%\jars\cougaar
 
 if "%ALP_INSTALL_PATH%"=="" goto AIP_ERROR

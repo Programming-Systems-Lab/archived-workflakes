@@ -29,7 +29,7 @@ class isTaskPredicate implements UnaryPredicate{
    		Task t = (Task)o;
 		ret = t.getVerb().equals(Verb.getVerb("CODE"));
 	}
-	return ret;   
+	return ret;
   }
 }
 
@@ -63,23 +63,31 @@ public class ManagerAllocatorPlugIn
 		swDevOrgs = (IncrementalSubscription)subscribe(new isDevOrgPredicate());
 		System.out.println("ManagerAllocatorPlugIn - out of setupSubscriptions()");
 	}
-		
+
 	protected void execute()
 	{
-		super.execute();				
+		super.execute();
 	}
-	
+
 	//implementation of interface MgrAllocAdaptorInf
-	
+
 	public Enumeration getDevOrg() { return swDevOrgs.elements(); }
-	
+
 	public void allocateAsset (Task t, Asset a)
 	{
 		AllocationResult ar = null;
-		
+
 		Allocation allocation = theLDMF.createAllocation(t.getPlan(), t, a, ar, Role.ASSIGNED);
 		System.out.println ("Task " + t + " allocated to: " + a.getItemIdentificationPG().getItemIdentification());
 		publishAdd(allocation);
 	}
+
+        //fake - unused
+        public Enumeration getExecutors() { return null; }
+        //fake - unused
+        public void setAllocJunction(AllocatorJunction j) { }
+        //fake - unused
+        public void allocateTask (Task t, double time) { }
+
 
 }

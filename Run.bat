@@ -10,6 +10,7 @@ set LIBPATHS=%ALP_INSTALL_PATH%\core.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\glm.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\planserver.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\xml4j_2_0_11.jar
+set LIBPATHS=%LIBPATHS%;%PSL_HOME%\jars\siena-1.1.2.jar
 set LIBPATHS=%LIBPATHS%;%PSL_HOME%
 
 REM pass in "NodeName" to run a specific named Node

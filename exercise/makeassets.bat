@@ -1,5 +1,5 @@
 rem Script to generate asset classes
-set PSL_HOME=C:\valetto\columbia
+set PSL_HOME=C:\pslcvs
 set ALP_INSTALL_PATH=%PSL_HOME%\jars\cougaar
 
 set LIBPATHS=%ALP_INSTALL_PATH%\core.jar

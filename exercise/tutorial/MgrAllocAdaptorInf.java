@@ -12,7 +12,7 @@ import org.cougaar.domain.planning.ldm.plan.Task;
 import org.cougaar.domain.planning.ldm.asset.Asset;
 import psl.workflakes.coolets.adaptors.*;
 
-public interface MgrAllocAdaptorInf 
-	extends AllocatorAdaptorInf {
+public interface MgrAllocAdaptorInf
+	extends AllocatorAdaptorInf                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             {
 	public Enumeration getDevOrg();
 }

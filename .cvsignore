@@ -1,2 +1,6 @@
 *.bak
 *.class
+*.jpx*
+*.library
+*.scc
+*~
