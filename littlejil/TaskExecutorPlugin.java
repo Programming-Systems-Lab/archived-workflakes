@@ -1,20 +1,17 @@
 package psl.workflakes.littlejil;
 
+import java.util.Enumeration;
+import java.util.Random;
+
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
 import org.cougaar.core.blackboard.SubscriberException;
+import org.cougaar.core.domain.RootFactory;
 import org.cougaar.core.plugin.ComponentPlugin;
 import org.cougaar.core.service.*;
-import org.cougaar.core.domain.RootFactory;
-import org.cougaar.util.UnaryPredicate;
-import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.planning.ldm.asset.Asset;
-import psl.workflakes.littlejil.xmlschema.*;
-import psl.workflakes.littlejil.xmlschema.types.*;
-
-import java.util.*;
-
-import psl.workflakes.littlejil.assets.*;
+import org.cougaar.planning.ldm.plan.*;
+import org.cougaar.util.UnaryPredicate;
 
 /**
  * This plugin simulates executing a task
@@ -87,7 +84,7 @@ public class TaskExecutorPlugin extends ComponentPlugin {
             Task task = allocation.getTask();
             Asset asset = allocation.getAsset();
 
-            int waitTime = random.nextInt(3)+2;
+            int waitTime = random.nextInt(1)+2;
             logger.info(">>> executing task " + task.getVerb() + ", will be done in " + waitTime + " seconds.");
 
             // "wait for task to be done"
@@ -95,6 +92,20 @@ public class TaskExecutorPlugin extends ComponentPlugin {
                 Thread.sleep((waitTime)*1000);
             } catch (InterruptedException e) {
 
+            }
+
+            boolean success;
+            LittleJILException exception = null;
+            // for TESTING. tasks that contain "Fail" in the name will fail
+            if (task.getVerb().toString().indexOf("Fail") != -1) {
+                logger.debug("setting success to false");
+                success = false;
+
+                // exception to be published
+                exception = new LittleJILException(task, new Exception("test exception"));
+            }
+            else {
+                success = true;
             }
 
             Preference end_time_pref = task.getPreference(AspectType.END_TIME);
@@ -106,8 +117,9 @@ public class TaskExecutorPlugin extends ComponentPlugin {
             int end = (int) end_time_pref.getScoringFunction().getBest().getValue();
             int[] aspect_types = {AspectType.END_TIME};
             double[] results = {end};
+
             AllocationResult result = factory.newAllocationResult(1.0, //rating
-                    true, // success or not
+                    success, // success or not
                     aspect_types,
                     results);
 
@@ -116,10 +128,19 @@ public class TaskExecutorPlugin extends ComponentPlugin {
                 logger.info(">>> task " + task.getVerb() + " finished. updating allocation result");
                 blackboard.openTransaction();
 
-                allocation.setEstimatedResult(result);
-                blackboard.publishChange(allocation);
+                if (success) {
+                    allocation.setEstimatedResult(result);
+                } else {
+                    ((PlanElementForAssessor)allocation).setReceivedResult(result);
+                }
 
+
+                blackboard.publishChange(allocation);
                 blackboard.publishChange(task);
+
+                if (exception != null) {
+                    blackboard.publishAdd(exception);
+                }
 
                 blackboard.closeTransaction();
             } catch (SubscriberException e) {
