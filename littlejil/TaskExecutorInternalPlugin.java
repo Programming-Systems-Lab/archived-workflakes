@@ -12,14 +12,14 @@ import org.cougaar.core.service.DomainService;
 import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
 
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Iterator;
+import java.util.*;
 
 /**
- * This plugin executes task by invoking a method on a class.
- * Currently the method is executed synchronously
+ * This plugin executes tasks by invoking a method on a class.
+ * Classes that are used to execute tasks need to implement the ExecutableTask interface.
+ * Invokations are executed asynchronously.
+ *
+ * // TODO: get class name based on some configuration or parameter in little-jil diagram?
  *
  * @author matias
  */
@@ -76,61 +76,10 @@ public class TaskExecutorInternalPlugin extends ComponentPlugin {
         for (Enumeration allocations = allocationsSubscription.getAddedList(); allocations.hasMoreElements();) {
 
             Allocation allocation = (Allocation) allocations.nextElement();
-            Task task = allocation.getTask();
+            ExecutableTaskThread thread = new ExecutableTaskThread(allocation);
 
-            // fill parameter table from parameter bindings
-            // the "in" parameters should have been filled when this task was posted,
-            // by the ExpanderPlugin
-            Hashtable inParams = new Hashtable();
-
-            LittleJILStepsTable.Entry entry = stepsTable.getEntry(task);
-            assert(task != null);
-
-            Collection paramBindings = entry.getParameterBindings();
-            for (Iterator i = paramBindings.iterator(); i.hasNext();) {
-                ParameterBinding binding = (ParameterBinding) i.next();
-                ParameterDeclaration declaration = binding.getDeclarationInChild();
-                if (declaration.getMode() != ParameterDeclaration.COPY_OUT) {
-                    inParams.put(declaration.getName(), declaration.getParameterValue());
-                }
-            }
-
-            Hashtable outParams = new Hashtable();
-            /*try {
-                // TODO invoke task! -- pass in and outParams tables (outParams to be filled in)
-            }
-            catch () {
-
-            }*/
-
-
-            // for TESTING
-            laser.littlejil.types.SimpleDuration v = new laser.littlejil.types.SimpleDuration();
-            v.setSeconds((int)(Math.random()*100));
-            outParams.put("result", v);
-
-            // set out parameter values to the ones in the outParams table, and copy them
-            // as specified by the parameter bindings
-            for (Iterator i = paramBindings.iterator(); i.hasNext();) {
-                ParameterBinding binding = (ParameterBinding) i.next();
-                ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
-                ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
-
-                if (childDeclaration.getMode() == ParameterDeclaration.COPY_OUT ||
-                    childDeclaration.getMode() == ParameterDeclaration.COPY_IN_AND_OUT) {
-                    Object value = outParams.get(childDeclaration.getName());
-                    if (value != null) {
-                        logger.debug("setting parent param " + parentDeclaration.getName() +
-                                " to " + value);
-                        childDeclaration.setParameterValue(value);
-                        parentDeclaration.setParameterValue(value);
-                    } else {
-                        logger.warn("out parameter " + childDeclaration.getName() + " not found in outParams table");
-                    }
-                }
-            }
-
-            processAllocation(allocation, true);
+            logger.debug("starting execute thread for task " + allocation.getTask().getVerb() + "...");
+            thread.start();
         }
 
     }
@@ -162,6 +111,9 @@ public class TaskExecutorInternalPlugin extends ComponentPlugin {
                 results);
 
         try {
+
+            blackboard.openTransaction();   // because we not calling this method from Plugin.execute();
+
             if (success) {
                 logger.info(">>> task " + task.getVerb() + " finished. updating allocation result");
                 allocation.setEstimatedResult(result);
@@ -175,9 +127,103 @@ public class TaskExecutorInternalPlugin extends ComponentPlugin {
 
             blackboard.publishChange(allocation);
             blackboard.publishChange(task);
+
+            blackboard.closeTransaction();
+
         } catch (SubscriberException e) {
             logger.error("could not publish change: " + e);
         }
     }
 
+    /**
+     * This thread class is used to execute tasks asynchronously
+     */
+    private class ExecutableTaskThread extends Thread {
+
+        private Allocation allocation;
+
+        public ExecutableTaskThread(Allocation allocation) {
+            this.allocation = allocation;
+        }
+
+        public void run() {
+
+            Task task = allocation.getTask();
+
+            // fill parameter table from parameter bindings
+            // the "in" parameters should have been filled when this task was posted,
+            // by the ExpanderPlugin
+            Hashtable inParams = new Hashtable();
+
+            LittleJILStepsTable.Entry entry = stepsTable.getEntry(task);
+            assert(task != null);
+
+            Collection paramBindings = entry.getParameterBindings();
+            for (Iterator i = paramBindings.iterator(); i.hasNext();) {
+                ParameterBinding binding = (ParameterBinding) i.next();
+                ParameterDeclaration declaration = binding.getDeclarationInChild();
+                if (declaration.getMode() != ParameterDeclaration.COPY_OUT) {
+                    inParams.put(declaration.getName(), declaration.getParameterValue());
+                }
+            }
+
+            Hashtable outParams = new Hashtable();
+            try {
+                // TODO: use actual class name
+                ExecutableTask executable = new DummyExecutableTask();
+                executable.execute(task.getVerb().toString(), inParams, outParams);
+
+                // set out parameter values to the ones in the outParams table, and copy them
+                // as specified by the parameter bindings
+                for (Iterator i = paramBindings.iterator(); i.hasNext();) {
+                    ParameterBinding binding = (ParameterBinding) i.next();
+                    ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
+                    ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
+
+                    if (childDeclaration.getMode() == ParameterDeclaration.COPY_OUT ||
+                            childDeclaration.getMode() == ParameterDeclaration.COPY_IN_AND_OUT) {
+                        Object value = outParams.get(childDeclaration.getName());
+                        if (value != null) {
+                            logger.debug("setting parent param " + parentDeclaration.getName() +
+                                    " to " + value);
+                            childDeclaration.setParameterValue(value);
+                            parentDeclaration.setParameterValue(value);
+                        } else {
+                            logger.warn("out parameter " + childDeclaration.getName() + " not found in outParams table");
+                        }
+                    }
+                }
+
+                // task executed successfully
+                logger.debug("executable for task " + task.getVerb() + " executed successfully");
+                processAllocation(allocation, true);
+
+            }
+            catch (Exception e) {
+                // an error occurred
+                logger.debug("executable for task " + task.getVerb() + " failed with exception " + e);
+                processAllocation(allocation, false);   // TODO: pass exception along
+                return;
+            }
+
+
+
+        }
+
+    }
+
+    private class DummyExecutableTask implements ExecutableTask {
+
+        public void execute(String method, Hashtable inParams, Hashtable outParams) throws Exception {
+
+            logger.info("executing method " + method);
+
+            // for TESTING
+            laser.littlejil.types.SimpleDuration v = new laser.littlejil.types.SimpleDuration();
+            v.setSeconds((int)(Math.random()*100));
+            outParams.put("result", v);
+
+        }
+
+    }
 }
