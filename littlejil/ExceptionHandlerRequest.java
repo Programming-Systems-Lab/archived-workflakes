@@ -20,6 +20,7 @@ public class ExceptionHandlerRequest implements Serializable {
     public static final int RESTART = 0;
     public static final int CONTINUE = 1;
     public static final int TRY = 2;
+    public static final int COMPLETE = 3;
 
     public ExceptionHandlerRequest(int type, Step step, Task task, Step failedStep) {
         this.type = type;
