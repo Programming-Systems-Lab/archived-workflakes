@@ -10,6 +10,7 @@ import org.cougaar.core.plugin.util.PluginHelper;
 import org.cougaar.core.service.DomainService;
 import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
+import laser.littlejil.Step;
 
 /**
  * This class should get tasks posted on a blackboard and expand their workflows as necessary
@@ -23,6 +24,9 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
     private IncrementalSubscription expansionsSubscription;
     private IncrementalSubscription tasksSubscription;
+    private IncrementalSubscription littleJILStepsTableSubscription;
+
+    private LittleJILStepsTable stepsTable; // used to keep a mapping of task->step
 
     /**
      * Used by the binding utility through reflection to set my DomainService
@@ -53,16 +57,25 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         }
     }
 
+    private static class LittleJILStepsTablePredicate implements UnaryPredicate {
+        public boolean execute(Object o) {
+            return (o instanceof LittleJILStepsTable);
+        }
+    }
+
     public void setupSubscriptions() {
 
         // now set up the subscription to get diagrams
         expansionsSubscription = (IncrementalSubscription) blackboard.subscribe(new ExpansionsPredicate());
         tasksSubscription = (IncrementalSubscription) blackboard.subscribe(new ExpandableTasksPredicate());
-
+        littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
 
     }
 
     public void execute() {
+
+        // assumming that the LittleJILExpanderPlugin has already published a stepsTable
+        stepsTable = (LittleJILStepsTable) littleJILStepsTableSubscription.first();
 
         // look for changed expansions that may be done
         for (Enumeration expansions = expansionsSubscription.getChangedList(); expansions.hasMoreElements();) {
@@ -83,12 +96,12 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         for (Enumeration expansions = expansionsSubscription.elements(); expansions.hasMoreElements();) {
 
             Expansion expansion = (Expansion) expansions.nextElement();
-            Workflow wf = expansion.getWorkflow();
+            Workflow workflow = expansion.getWorkflow();
 
             processExpansion(expansion);
 
             Constraint constraint;
-            while ((constraint = wf.getNextPendingConstraint()) != null) {
+            while ((constraint = workflow.getNextPendingConstraint()) != null) {
                 logger.debug("found a pending constraint: " + PluginUtil.constraintToString(constraint));
                 ConstraintEvent ced = constraint.getConstrainedEventObject();
                 if (ced instanceof SettableConstraintEvent) {
@@ -96,9 +109,18 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                     Task constrainedTask = constraint.getConstrainedTask();
 
+                    // first check if this is a choice or try task, in which case we actually
+                    // don't want to run any more of these tasks
+                    // TODO: in progress
+                    Step step = stepsTable.get(workflow.getParentTask());
+                    if (step.getStepKind() == Step.CHOICE || step.getStepKind() == Step.TRY) {
+                        continue;
+                    }
+
+
                     // we've resolved this constraint, but before we continue, we should check if
                     // there aren't more constraints for this task that have not been resolved
-                    if (hasMoreConstraints(wf, constrainedTask, false)) {
+                    if (hasMoreConstraints(workflow, constrainedTask, false)) {
                         logger.debug("task " + constrainedTask.getVerb() + " has more constraints");
                         continue;
                     }
