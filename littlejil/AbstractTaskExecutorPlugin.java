@@ -40,7 +40,7 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
     private Class assetClass;   // the asset class to match for this plugin instance
 
     /**
-     * Subclasses need to implement this constructor, where they should call super() with the class
+     * Subclasses should have a default constructor, where they should call super() with the class
      * of ExecAgentAssets they want to subscribe to.
      * @param assetClass
      */
@@ -132,7 +132,7 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
     /**
      * Subclass of AbstractTaskExecutorPlugin need to implement this method to actually execute the
      * given task allocation with the appropriate facility (eg worklets, direct class invokation, SOAP, etc).
-     *
+     * <br>
      * NOTE: because tasks may be executed asynchronously, implementations of this method
      * <b>MUST</b> call the static method <code>processAllocation</code> when they complete, so that
      * the task can be set as having completed successfully or not and the out parameters can be
@@ -144,8 +144,8 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
     protected abstract void executeTask(Allocation allocation, Hashtable inParams);
 
     /**
-     * <b>Either taskSucceeded or taskFailed() MUST be called after executeTask() completes.</b>
-     *
+     * <b>Either taskSucceeded or taskFailed() MUST be called after the executing task completes.</b>
+     * <br>
      * Given an allocation for the task that was executed successfully, it updates the
      * allocation results. It also copies out any out parameters with the values given in outParams.
      *
@@ -157,8 +157,8 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
     }
 
     /**
-     * <b>Either taskSucceeded or taskFailed() MUST be called after executeTask() completes.</b>
-     *
+     * <b>Either taskSucceeded or taskFailed() MUST be called after executing task () completes.</b>
+     * <br>
      * Given an allocation for the task that failed execution, it updates the allocation results,
      * and publishes a LittleJILException for this failed task.
      *
