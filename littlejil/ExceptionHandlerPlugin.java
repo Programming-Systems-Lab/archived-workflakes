@@ -227,12 +227,12 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
 
                     // make a copy of this workflow, which we will post to restart the task
                     Expansion originalExpansion = (Expansion) task.getPlanElement();
-                    NewWorkflow originalWorkflow = (NewWorkflow) originalExpansion.getWorkflow();
+                    Workflow originalWorkflow = originalExpansion.getWorkflow();
                     NewWorkflow copiedWorkflow = copyWorkflow(originalWorkflow);
                     copiedWorkflow.setParentTask(task);
 
                     // remove the old expansion - but have to manually remove tasks from workflow first
-                    clearWorkflow(originalWorkflow);
+                    clearWorkflow((NewWorkflow)originalWorkflow);
                     logger.debug("removing expansion: " + originalExpansion);
                     blackboard.publishRemove(originalExpansion);
 
@@ -371,6 +371,7 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
     private NewWorkflow copyWorkflow(Workflow workflow) {
 
         NewWorkflow newWorkflow = factory.newWorkflow();
+        newWorkflow.setParentTask(workflow.getParentTask());
 
         for (Enumeration tasks = workflow.getTasks(); tasks.hasMoreElements();) {
             Task task = (Task) tasks.nextElement();
@@ -413,6 +414,7 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
             }
 
             ((NewTask) task).setVerb(new Verb(task.getVerb().toString() + "2"));
+            ((NewTask) task).setWorkflow(newWorkflow);
             newWorkflow.addTask(task);
 
         }
@@ -432,7 +434,6 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
 
             newWorkflow.addConstraint(newConstraint);
         }
-
 
         return newWorkflow;
     }
