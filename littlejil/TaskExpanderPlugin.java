@@ -1,8 +1,6 @@
 package psl.workflakes.littlejil;
 
-import java.util.Enumeration;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.*;
 
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
@@ -16,13 +14,19 @@ import laser.littlejil.ParameterBinding;
 import laser.littlejil.ParameterDeclaration;
 
 /**
- * This class gets tasks posted on a blackboard and expand their workflows as necessary
+ * This class gets tasks posted on a blackboard and expand their workflows as necessary.
+ *
+ *
+ *
  * @author matias
  */
 
 public class TaskExpanderPlugin extends ComponentPlugin {
 
     private static final Logger logger = Logger.getLogger(TaskExpanderPlugin.class);
+
+    private static Vector listeners = new Vector();
+
     private DomainService domainService;
 
     private IncrementalSubscription expansionsSubscription;
@@ -72,6 +76,14 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
     }
 
+    public static void addListener(Listener listener) {
+        listeners.add(listener);
+    }
+
+    public static void removeListener(Listener listener) {
+        listeners.remove(listener);
+    }
+
     public void execute() {
 
         // assumming that the LittleJILExpanderPlugin has already published a stepsTable
@@ -113,6 +125,12 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                 // but would lose history? (would also require implementing PrivilegedClaimant)
                 //blackboard.publishRemove(expansion);
 
+                // notify listeners of task ending
+                for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
+                    Listener listener = (Listener) iterator.next();
+                    listener.taskFinished(expansion.getTask().getVerb().toString());
+                }
+
             }
 
         }
@@ -147,12 +165,11 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                     else if (constrainedTask.getAnnotation() != null && constrainedTask.getAnnotation() instanceof ChoiceAnnotation) {
 
                         logger.debug("task " + constrainedTask.getVerb() + " is a CHOICE task");
-                        Step step = ((ChoiceAnnotation)constrainedTask.getAnnotation()).chooseSubstep();
+                        Step step = ((ChoiceAnnotation) constrainedTask.getAnnotation()).chooseSubstep();
 
                         MakeTaskRequest request = new MakeTaskRequest(constrainedTask, step);
                         blackboard.publishAdd(request);
-                    }
-                    else {
+                    } else {
                         logger.info("publishing task " + constrainedTask.getVerb());
                         setInParams(constrainedTask);
                         blackboard.publishAdd(constrainedTask);
@@ -161,6 +178,17 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                         if (planElement != null && planElement instanceof Expansion) {
                             //logger.debug("publishing tasks's expansion:" + planElement);
                             blackboard.publishChange(planElement);
+
+                            // notify listeners of task being published
+                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
+                                Listener listener = (Listener) iterator.next();
+                                listener.taskPublished(constrainedTask.getVerb().toString());
+                            }
+                        } else {
+                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
+                                Listener listener = (Listener) iterator.next();
+                                listener.leafTaskPublished(constrainedTask.getVerb().toString());
+                            }
                         }
                     }
                 }
@@ -226,16 +254,32 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                     if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
 
                         logger.debug("task " + task.getVerb() + " is a CHOICE task");
-                        Step step = ((ChoiceAnnotation)task.getAnnotation()).chooseSubstep();
+                        Step step = ((ChoiceAnnotation) task.getAnnotation()).chooseSubstep();
 
                         MakeTaskRequest request = new MakeTaskRequest(task, step);
                         blackboard.publishAdd(request);
-                    }
-                    else {
+                    } else {
                         logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
 
                         setInParams(task);
                         blackboard.publishAdd(task);
+
+                        PlanElement planElement = task.getPlanElement();
+                        if (planElement != null && planElement instanceof Expansion) {
+                            //logger.debug("publishing tasks's expansion:" + planElement);
+                            blackboard.publishChange(planElement);
+
+                            // notify listeners of task being published
+                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
+                                Listener listener = (Listener) iterator.next();
+                                listener.taskPublished(task.getVerb().toString());
+                            }
+                        } else {
+                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
+                                Listener listener = (Listener) iterator.next();
+                                listener.leafTaskPublished(task.getVerb().toString());
+                            }
+                        }
                     }
                 }
 
@@ -258,7 +302,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         for (Iterator i = paramBindings.iterator(); i.hasNext();) {
             ParameterBinding binding = (ParameterBinding) i.next();
             if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
-                binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
+                    binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
 
                 ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
                 ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
@@ -269,7 +313,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                     childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
 
                     logger.debug("in param " + childDeclaration.getName() +
-                                 " set to " + childDeclaration.getParameterValue());
+                            " set to " + childDeclaration.getParameterValue());
                 }
             }
         }
@@ -312,6 +356,21 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         }
 
         return constrained;
+
+    }
+
+
+    /**
+     * This class can be subclassed and used to subscribe to events from the TaskExpanderPlugin.
+     *
+     */
+    public static abstract class Listener {
+
+        public abstract void taskPublished(String taskName);
+
+        public abstract void leafTaskPublished(String taskName);
+
+        public abstract void taskFinished(String taskName);
 
     }
 
