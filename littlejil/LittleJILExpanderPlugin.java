@@ -123,6 +123,11 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             NewTask rootTask = factory.newTask();
             rootTask.setVerb(new Verb("ROOT"));
 
+            if (diagram.getRootStep() == null) {
+                logger.warn("Diagram has no root step!");
+                continue;
+            }
+
             NewTask task = (NewTask) makeTask(diagram.getRootStep());
 
             NewWorkflow workflow = factory.newWorkflow();
@@ -333,58 +338,39 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                     }
                 }
 
-                // recursive call to create this task -- this will create the task's subtasks, etc
-                NewTask subtask = (NewTask) makeTask(substep);
+                int count = 1;
+                Cardinality cardinality = substepBinding.getCardinality();
+                if (cardinality != null) {
+                    count = cardinality.getUpperBound();
+                }
 
-                // set the parameter bindings for this task
-                LittleJILStepsTable.Entry entry = stepsTable.getEntry(subtask);
-                assert(entry != null);  // all tasks should have an entry
+                for (int i=0;i<count;i++) {
 
-                // initialize the subtasks's in parameters... note that these values might get
-                // updated later by the TaskExpander (if for example the parameters that they are getting
-                // values from are updated by one of the subtasks)
-                for (Enumeration e = substepBinding.parameterBindings(); e.hasMoreElements();) {
-                    ParameterBinding binding = (ParameterBinding) e.nextElement();
-                    if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
-                            binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
+                    NewTask subtask = makeSubTask(substep, substepBinding, task, workflow);
 
-                        ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
-                        ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
-
-                        assert(parentDeclaration.getParameterValue() != null);
-                        childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
+                    if (step.getStepKind() == Step.TRY) {
+                        lastTask = subtask;
+                        break;  // don't add any more tasks for now!
                     }
-                }
+                    // if the parent step is sequential, set this task so it starts after the previous ends
+                    else if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
+                        logger.info("making constraint so that task " + subtask.getVerb() + " goes after " + lastTask.getVerb());
 
-                entry.setParameterBindings(PluginUtil.collectionFromEnumeration(substepBinding.parameterBindings()));
+                        NewConstraint constraint = factory.newConstraint();
+                        constraint.setConstrainingTask(lastTask);
+                        constraint.setConstrainingAspect(AspectType.END_TIME);
 
-                logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
-                subtask.setParentTask(task);
-                workflow.addTask(subtask);
-                subtask.setWorkflow(workflow);
+                        constraint.setConstrainedTask(subtask);
+                        constraint.setConstrainedAspect(AspectType.START_TIME);
 
-                if (step.getStepKind() == Step.TRY) {
+                        constraint.setConstraintOrder(Constraint.BEFORE);
+
+                        workflow.addConstraint(constraint);
+
+                    }
+
                     lastTask = subtask;
-                    break;  // don't add any more tasks for now!
                 }
-                // if the parent step is sequential, set this task so it starts after the previous ends
-                else if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
-                    logger.info("making constraint so that task " + subtask.getVerb() + " goes after " + lastTask.getVerb());
-
-                    NewConstraint constraint = factory.newConstraint();
-                    constraint.setConstrainingTask(lastTask);
-                    constraint.setConstrainingAspect(AspectType.END_TIME);
-
-                    constraint.setConstrainedTask(subtask);
-                    constraint.setConstrainedAspect(AspectType.START_TIME);
-
-                    constraint.setConstraintOrder(Constraint.BEFORE);
-
-                    workflow.addConstraint(constraint);
-
-                }
-
-                lastTask = subtask;
             }
 
         }
@@ -413,6 +399,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         return task;
     }
+
+
 
     /**
      * Encapsulates a task with pre or post requisistes into a "parent" task that contains as sub-tasks
@@ -531,6 +519,61 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         blackboard.publishAdd(expansion);
 
         return parentTask;
+    }
+
+    private NewTask makeSubTask(Step substep, SubstepBinding substepBinding, Task parentTask, NewWorkflow workflow) {
+        // recursive call to create this task -- this will create the task's subtasks, etc
+        NewTask subtask = (NewTask) makeTask(substep);
+
+        // set the parameter bindings for this task
+        LittleJILStepsTable.Entry entry = stepsTable.getEntry(subtask);
+        assert(entry != null);  // all tasks should have an entry
+
+        // initialize the subtasks's in parameters... note that these values might get
+        // updated later by the TaskExpander (if for example the parameters that they are getting
+        // values from are updated by one of the subtasks)
+        for (Enumeration parameterBindings = substepBinding.parameterBindings(); parameterBindings.hasMoreElements();) {
+            ParameterBinding binding = (ParameterBinding) parameterBindings.nextElement();
+            if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
+                    binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
+
+                ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
+                ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
+
+                if (parentDeclaration.getParameterValue() == null) {
+
+                    // instantiate it a new parameter value
+                    logger.debug("instantiating a new object for parent parameter " + parentDeclaration.getName());
+                    try {
+                        Class c = Class.forName(parentDeclaration.getParameterClassName());
+
+                        // HACK to have an "interesting" value in some cases
+                        Object o = null;
+                        if (c == String.class) {
+                            o = "42";
+                        }
+                        else {
+                            o = c.newInstance();
+                        }
+
+                        parentDeclaration.setParameterValue(o);
+                    } catch (Exception e) {
+                        logger.warn("Could not instantiate parameter: " + e);
+                    }
+
+                }
+
+                childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
+            }
+        }
+
+        entry.setParameterBindings(PluginUtil.collectionFromEnumeration(substepBinding.parameterBindings()));
+
+        logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + parentTask.getVerb());
+        subtask.setParentTask(parentTask);
+        workflow.addTask(subtask);
+        subtask.setWorkflow(workflow);
+        return subtask;
     }
 
     public static double getNextEndTime() {
