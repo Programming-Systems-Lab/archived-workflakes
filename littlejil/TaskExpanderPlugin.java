@@ -1,20 +1,15 @@
 package psl.workflakes.littlejil;
 
+import java.util.Enumeration;
+import java.util.Vector;
+
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
-import org.cougaar.core.blackboard.Subscription;
-import org.cougaar.core.blackboard.CollectionSubscription;
 import org.cougaar.core.plugin.ComponentPlugin;
 import org.cougaar.core.plugin.util.PluginHelper;
-import org.cougaar.core.service.BlackboardService;
 import org.cougaar.core.service.DomainService;
-import org.cougaar.core.domain.RootFactory;
-import org.cougaar.util.UnaryPredicate;
 import org.cougaar.planning.ldm.plan.*;
-import psl.workflakes.littlejil.xmlschema.*;
-import psl.workflakes.littlejil.xmlschema.types.*;
-
-import java.util.*;
+import org.cougaar.util.UnaryPredicate;
 
 /**
  * This class should get tasks posted on a blackboard and expand their workflows as necessary
@@ -67,8 +62,6 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
     }
 
-    Vector exps = new Vector();
-
     public void execute() {
 
         // look for changed expansions that may be done
@@ -76,7 +69,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
             Expansion expansion = (Expansion) expansions.nextElement();
 
             if (expansion.getEstimatedResult() != null) {
-                logger.info(">>>> parent task " + expansion.getTask().getVerb() + " is done <<<<");
+                logger.info(">>>> parent task " + expansion.getTask().getVerb() + " done <<<<");
             }
 
         }
@@ -87,7 +80,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
             Expansion expansion = (Expansion) expansions.nextElement();
             Workflow wf = expansion.getWorkflow();
 
-            processExpansion(expansion, true);
+            processExpansion(expansion);
 
             Constraint constraint;
             while ((constraint = wf.getNextPendingConstraint()) != null) {
@@ -110,7 +103,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                     PlanElement planElement = constrainedTask.getPlanElement();
                     if (planElement != null && planElement instanceof Expansion) {
-                        logger.debug("publishing tasks's expansion:" + planElement);
+                        //logger.debug("publishing tasks's expansion:" + planElement);
                         blackboard.publishChange(planElement);
                     }
                 }
@@ -121,67 +114,14 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
     }
 
-    /**
-     * Used to see if there are more unresolved constraints on this particular task
-     * @param workflow the workflow of which this task is part of
-     * @param constrainedTask the task to check
-     * @return true if there are any unresolved constraints that constrain the given task
-     */
-    private boolean hasMoreConstraints(Workflow workflow, Task constrainedTask, boolean checkParent) {
 
-        if (constrainedTask.getWorkflow() == null) {
-            return false;
-        }
-
-        boolean constrained = false;
-        for (Enumeration e = workflow.getTaskConstraints(constrainedTask);e.hasMoreElements();) {
-            Constraint constraint = (Constraint) e.nextElement();
-
-            try {
-                if (constraint.getConstrainedTask() == constrainedTask &&
-                        /*constraint.getConstrainedEventObject().isConstraining() &&*/
-                        Double.isNaN(constraint.getConstrainedEventObject().getResultValue())) {
-                    constrained = true;
-                    break;
-                }
-            } catch (Exception e1) {
-                continue;
-            }
-        }
-
-        if (!constrained && checkParent) {
-            Task parent = constrainedTask.getWorkflow().getParentTask();
-            if (parent != null) {
-                //logger.debug("[" + constrainedTask.getVerb() + ": checking parent for constraints]");
-                constrained = hasMoreConstraints(parent.getWorkflow(), parent, true);
-            }
-        }
-
-        return constrained;
-
-    }
-
-    private void processExpansion(Expansion expansion, boolean checkParentConstraints) {
+    private void processExpansion(Expansion expansion) {
         // first check that the parent task for this expansion can be executed
         Task parentTask = expansion.getTask();
         Workflow parentWorkflow = parentTask.getWorkflow();
 
+        //logger.debug("processing expansion " + expansion);
 
-        //logger.debug("expansion is for task " + parentTask + ", which has workflow " + parentWorkflow);
-        /*if (!checkParentConstraints)
-            logger.debug("[not checking parent task constraints]");
-*/
-        /*if (parentWorkflow != null && checkParentConstraints) {
-
-            Enumeration constraints = parentWorkflow.getTaskConstraints(parentTask);
-            while (constraints.hasMoreElements()) {
-                Constraint c = (Constraint) constraints.nextElement();
-                if (c.getConstrainedTask() == parentTask) {
-                    logger.debug("task has existing constraints, not expanding");
-                    return;
-                }
-            }
-        }*/
         if (parentWorkflow != null) {
             if (hasMoreConstraints(parentWorkflow, parentTask, true)) {
                 logger.debug("parent task " + parentTask.getVerb() + " has existing constraints, not expanding");
@@ -200,7 +140,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
             //logger.debug("looking at task " + task.getVerb());
 
             if (task.getPlanElement() == null) {
-                //logger.debug("task " + task.getVerb() + " is a leaf task");
+                // task is a leaf task
 
                 // have to check each constraint, because this task may just be constraining
                 // some other task. if we find that this task is indeed being constrained, then
@@ -226,6 +166,45 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         }
     }
 
+    /**
+     * Used to see if there are more unresolved constraints on this particular task
+     * @param workflow the workflow of which this task is part of
+     * @param constrainedTask the task to check
+     * @return true if there are any unresolved constraints that constrain the given task
+     */
+    private boolean hasMoreConstraints(Workflow workflow, Task constrainedTask, boolean checkParent) {
+
+        if (constrainedTask.getWorkflow() == null) {
+            return false;
+        }
+
+        boolean constrained = false;
+        for (Enumeration e = workflow.getTaskConstraints(constrainedTask); e.hasMoreElements();) {
+            Constraint constraint = (Constraint) e.nextElement();
+
+            try {
+                if (constraint.getConstrainedTask() == constrainedTask &&
+                        /*constraint.getConstrainedEventObject().isConstraining() &&*/
+                        Double.isNaN(constraint.getConstrainedEventObject().getResultValue())) {
+                    constrained = true;
+                    break;
+                }
+            } catch (Exception e1) {
+                continue;
+            }
+        }
+
+        if (!constrained && checkParent) {
+            Task parent = constrainedTask.getWorkflow().getParentTask();
+            if (parent != null) {
+                //logger.debug("[" + constrainedTask.getVerb() + ": checking parent for constraints]");
+                constrained = hasMoreConstraints(parent.getWorkflow(), parent, true);
+            }
+        }
+
+        return constrained;
+
+    }
 
 }
 
