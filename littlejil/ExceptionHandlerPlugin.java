@@ -26,6 +26,9 @@ import laser.littlejil.Step;
  *  - the exception handler is retrieved. at the moment only the first one is considered
  *  - the rest corresponds to the behavior of the exception handler (restarting, continuing, completing, rethrowing)
  *
+ * TODO: better handling for complete tasks (esp when no handler step is available)
+ *
+ *
  * Implementing the PrivilegedClaimant interface allows this plugin to remove expansion that were
  * posted by other plugins
  *
@@ -131,27 +134,28 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         blackboard.publishRemove(task.getPlanElement());
                     }
 
+                    // add handler task so that it gets executed before the task gets restarted
+                    // (we insert it into the parent workflow)
                     if (handlerTask != null) {
-                        remainingWorkflow.addTask(handlerTask);
-                        ((NewTask) handlerTask).setWorkflow(remainingWorkflow);
+                        NewWorkflow parentWorkflow = (NewWorkflow) task.getWorkflow();
+                        parentWorkflow.addTask(handlerTask);
+                        ((NewTask) handlerTask).setWorkflow(parentWorkflow);
+                        ((NewTask) handlerTask).setParentTask(parentWorkflow.getParentTask());
 
-                        // TODO: assuming that the first task returned by workflow.getTasks() is indeed the first one in order
-                        if (remainingWorkflow.getTasks().hasMoreElements()) {
-                            Task firstTask = (Task) remainingWorkflow.getTasks().nextElement();
+                        NewConstraint constraint = factory.newConstraint();
+                        constraint.setConstrainingTask(handlerTask);
+                        constraint.setConstrainingAspect(AspectType.END_TIME);
 
-                            // add constraint so that the handler task gets done before this task
-                            NewConstraint constraint = factory.newConstraint();
-                            constraint.setConstrainingTask(handlerTask);
-                            constraint.setConstrainingAspect(AspectType.END_TIME);
+                        constraint.setConstrainedTask(task);
+                        constraint.setConstrainedAspect(AspectType.START_TIME);
 
-                            constraint.setConstrainedTask(firstTask);
-                            constraint.setConstrainedAspect(AspectType.START_TIME);
+                        constraint.setConstraintOrder(Constraint.BEFORE);
 
-                            constraint.setConstraintOrder(Constraint.BEFORE);
+                        parentWorkflow.addConstraint(constraint);
 
-                            remainingWorkflow.addConstraint(constraint);
-                        }
+                        blackboard.publishChange(parentWorkflow);
                     }
+
 
                     logger.debug("re-publishing expansion for continuing task");
                     NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, remainingWorkflow, null);
@@ -210,57 +214,33 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         continue;   // with the for (Enumeration exceptions...)
                     }
 
+                    // remove the current expansion
                     Expansion originalExpansion = (Expansion) task.getPlanElement();
-                    /*// make a copy of this workflow, which we will post to restart the task
-
-                    Workflow originalWorkflow = originalExpansion.getWorkflow();
-                    NewWorkflow copiedWorkflow = copyWorkflow(originalWorkflow);
-                    copiedWorkflow.setParentTask(task);
-
-                    // remove the old expansion - but have to manually remove tasks from workflow first
-                    // otherwise, the tasks associated with this expansion will also be publishRemove()'d
-                    clearWorkflow((NewWorkflow) originalWorkflow);
                     blackboard.publishRemove(originalExpansion);
 
-                    // if there is a handler task, and it's not already in the workflow, we want to insert that first....
-                    // (it could be already if this is the second time we are restarting the task)
-                    if (handlerTask != null && !containsTask(copiedWorkflow, handlerTask)) {
+                    // add handler task so that it gets executed before the task gets restarted
+                    // (we insert it into the parent workflow)
+                    if (handlerTask != null) {
+                        NewWorkflow parentWorkflow = (NewWorkflow) task.getWorkflow();
+                        parentWorkflow.addTask(handlerTask);
+                        ((NewTask) handlerTask).setWorkflow(parentWorkflow);
+                        ((NewTask) handlerTask).setParentTask(parentWorkflow.getParentTask());
 
-                        copiedWorkflow.addTask(handlerTask);
-                        ((NewTask) handlerTask).setWorkflow(copiedWorkflow);
+                        NewConstraint constraint = factory.newConstraint();
+                        constraint.setConstrainingTask(handlerTask);
+                        constraint.setConstrainingAspect(AspectType.END_TIME);
 
-                        // TODO: I'm assuming that the first task returned by workflow.getTasks() is indeed the first one in order
-                        if (copiedWorkflow.getTasks().hasMoreElements()) {
-                            Task firstTask = (Task) copiedWorkflow.getTasks().nextElement();
+                        constraint.setConstrainedTask(task);
+                        constraint.setConstrainedAspect(AspectType.START_TIME);
 
-                            logger.debug("adding constraint so that " + handlerTask.getVerb() + " goes before " +
-                                    firstTask.getVerb());
+                        constraint.setConstraintOrder(Constraint.BEFORE);
 
+                        parentWorkflow.addConstraint(constraint);
 
-                            // add constraint so that the handler task gets done before this task
-                            NewConstraint constraint = factory.newConstraint();
-                            constraint.setConstrainingTask(handlerTask);
-                            constraint.setConstrainingAspect(AspectType.END_TIME);
-
-                            constraint.setConstrainedTask(firstTask);
-                            constraint.setConstrainedAspect(AspectType.START_TIME);
-
-                            constraint.setConstraintOrder(Constraint.BEFORE);
-
-                            copiedWorkflow.addConstraint(constraint);
-                        }
+                        blackboard.publishChange(parentWorkflow);
                     }
 
-                    NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, copiedWorkflow, null);
-
-                    blackboard.publishChange(task);
-
-                    blackboard.publishAdd(expansion);*/
-
-                    ///////////
-                    // change: post step, LittleJILExpanderPlugin will re-post a new expansion
-                    blackboard.publishRemove(originalExpansion);
-
+                    // post step, LittleJILExpanderPlugin will re-post a new expansion
                     blackboard.publishAdd(step);
 
                 }
