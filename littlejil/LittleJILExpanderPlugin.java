@@ -25,20 +25,20 @@ import org.cougaar.util.UnaryPredicate;
  */
 
 public class LittleJILExpanderPlugin extends ComponentPlugin {
-    private static final String DIAGRAM_FILENAME = "test-diagram";
 
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);
     private IncrementalSubscription diagramSubscription;
+    private IncrementalSubscription stepSubscription;
     private IncrementalSubscription littleJILStepsTableSubscription;
+
     private DomainService domainService;
     private RootFactory factory;
 
     private LittleJILStepsTable stepsTable; // used to keep a mapping of task->step
 
-    // the "end time" for the tasks, which keeps increasing...
-    // TODO: make sure there are no issues with sharing this among different workflows
-    // (intuitively there shouldn't be since later tasks will always have a later end time)
+    // the "end time" for new tasks, which keeps increasing...
     private static double endTime = 1.0;
+
 
     /**
      * Used by the binding utility through reflection to set my DomainService
@@ -54,6 +54,12 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
     }
 
+    private static class StepPredicate implements UnaryPredicate {
+        public boolean execute(Object o) {
+            return (o instanceof Step);
+        }
+    }
+
     private static class LittleJILStepsTablePredicate implements UnaryPredicate {
         public boolean execute(Object o) {
             return (o instanceof LittleJILStepsTable);
@@ -62,8 +68,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     public void setupSubscriptions() {
 
-       // set up the subscription to get diagrams
+        // set up the subscription to get diagrams
         diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
+        stepSubscription = (IncrementalSubscription) blackboard.subscribe(new StepPredicate());
         littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
 
         logger.info("ready.");
@@ -77,12 +84,11 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         if (littleJILStepsTableSubscription.size() == 0) {
             stepsTable = new LittleJILStepsTable();
             blackboard.publishAdd(stepsTable);
-        }
-        else {
+        } else {
             stepsTable = (LittleJILStepsTable) littleJILStepsTableSubscription.first();
         }
 
-        for (Enumeration e = diagramSubscription.getAddedList();e.hasMoreElements();) {
+        for (Enumeration e = diagramSubscription.getAddedList(); e.hasMoreElements();) {
 
             Diagram diagram = (Diagram) e.nextElement();
             logger.info("found diagram in blackboard: " + diagram.getName());
@@ -93,17 +99,38 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         }
 
+        for (Enumeration e = stepSubscription.getAddedList(); e.hasMoreElements();) {
+
+            Step step = (Step) e.nextElement();
+            logger.info("found step in blackboard: " + step.getName());
+
+            // TODO: if this step already has a task associated with it, then modify that task
+            Task task = stepsTable.get(step);
+            if (task != null) {
+                makeTask(step, task, true);
+            }
+            else {
+                makeTask(step);
+            }
+
+        }
+
     }
 
 
-   /**
+    /**
      * This method makes a Task from a LittleJIL step, setting the necessary properties and creating
      * a workflow with the step's substeps (if any).
      *
      */
-   private NewTask makeTask(Step step) {
-       return makeTask(step, true);
-   }
+    private Task makeTask(Step step) {
+        return makeTask(step, true);
+    }
+
+
+    private Task makeTask(Step step, boolean checkRequisites) {
+        return makeTask(step, null, checkRequisites);
+    }
 
     /**
      * This method makes a Task from a LittleJIL step, setting the necessary properties and creating
@@ -116,27 +143,32 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      * @param checkRequisites true if makeTaskWithRequisites should be called if the step has pre or
      *        post-requisites. This is used mostly so makeTask() can be called from makeTaskWithRequisistes
      *        without going into an infinite loop
+     * @param task if this is a step that is being restarted, an existing task can be given so that
+     *        the new workflow is set to that task and a new one is not created
      * @return a Cougaar Task, with an associated workflow (if necessary)
      */
-    private NewTask makeTask(Step step, boolean checkRequisites) {
+    private Task makeTask(Step step, Task task, boolean checkRequisites) {
 
         if (checkRequisites && (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
             logger.debug("step " + step.getName() + " has pre- or post-requisites");
             return makeTaskWithRequisites(step);
         }
 
-        NewTask parentTask = factory.newTask();
-        parentTask.setVerb(new Verb(step.getName()));
+        if (task == null) {
+            logger.info("creating new task " + step.getName());
+            task = factory.newTask();
+            ((NewTask) task).setVerb(new Verb(step.getName()));
 
-        // TODO: should I use different END_TIME prefs? mhmm...
-        ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
-                (new AspectValue(AspectType.END_TIME, getNextEndTime()));
-        Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
-        parentTask.setPreference(pref);
+            // TODO: should I use different END_TIME prefs? mhmm...
+            ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
+                    (new AspectValue(AspectType.END_TIME, getNextEndTime()));
+            Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
+            ((NewTask) task).setPreference(pref);
+        }
 
         // make tasks for any handlers that this step has, and put them in the steps table
         // (they will be used in the ExceptionHandlerPlugin)
-        for (Enumeration handlers = step.handlers();handlers.hasMoreElements();) {
+        for (Enumeration handlers = step.handlers(); handlers.hasMoreElements();) {
             HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
             if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
                 Step handlerStep = (Step) handlerBinding.getTarget();
@@ -147,9 +179,10 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
 
         // add this task to the task->steps table
-        stepsTable.put(parentTask, step);
+        stepsTable.put(task, step);
+        stepsTable.put(step, task);
 
-        logger.debug("created task " + parentTask.getVerb());
+        logger.debug("created task " + task.getVerb());
 
         NewWorkflow workflow = factory.newWorkflow();
 
@@ -158,22 +191,22 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         Task lastTask = null;
         for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
             Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
-            NewTask task = makeTask(substep);
+            NewTask subtask = (NewTask) makeTask(substep);
 
-            logger.debug("adding task " + task.getVerb() + " to workflow of task " + parentTask.getVerb());
-            task.setParentTask(parentTask);
-            workflow.addTask(task);
-            task.setWorkflow(workflow);
+            logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
+            subtask.setParentTask(task);
+            workflow.addTask(subtask);
+            subtask.setWorkflow(workflow);
 
             // if the parent step is sequential, set this task so it starts after the previous ends
-            if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
-                logger.info("making constraint so that task " + task.getVerb() + " goes after " + lastTask.getVerb());
+            if (step.getStepKind() != Step.PARALLEL && lastTask != null) {
+                logger.info("making constraint so that task " + subtask.getVerb() + " goes after " + lastTask.getVerb());
 
                 NewConstraint constraint = factory.newConstraint();
                 constraint.setConstrainingTask(lastTask);
                 constraint.setConstrainingAspect(AspectType.END_TIME);
 
-                constraint.setConstrainedTask(task);
+                constraint.setConstrainedTask(subtask);
                 constraint.setConstrainedAspect(AspectType.START_TIME);
 
                 constraint.setConstraintOrder(Constraint.BEFORE);
@@ -182,24 +215,24 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             }
 
-            // TODO: choice and try
+            // TODO: choice and try (in progress)
 
-            lastTask = task;
+            lastTask = subtask;
         }
 
         if (lastTask != null) {
-            workflow.setParentTask(parentTask);
-            NewExpansion expansion = (NewExpansion) factory.createExpansion(parentTask.getPlan(), parentTask, workflow, null);
+            workflow.setParentTask(task);
+            NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, workflow, null);
 
-            logger.debug("publishing parent task " + parentTask);
-            blackboard.publishAdd(parentTask);
+            logger.debug("publishing parent task " + task);
+            blackboard.publishAdd(task);
 
             logger.debug("publishing expansion " + expansion);
             blackboard.publishAdd(expansion);
 
         }
 
-        return parentTask;
+        return task;
     }
 
     /**
@@ -208,7 +241,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      * @param step
      * @return
      */
-    private NewTask makeTaskWithRequisites(Step step) {
+    private Task makeTaskWithRequisites(Step step) {
 
         RequisiteBinding preReqBinding = step.getPrerequisite();
         RequisiteBinding postReqBinding = step.getPostrequisite();
@@ -225,7 +258,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         // If a task with pre-requisite has a RESTART expansion handler, then we
         // need to handler that in the "parent task" that we are creating,
         // because otherwise when the task is restarted the pre-requisite will not be run
-        for (Enumeration handlers = step.handlers();handlers.hasMoreElements();) {
+        for (Enumeration handlers = step.handlers(); handlers.hasMoreElements();) {
             HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
             if (handlerBinding.getControlFlow() == HandlerBinding.RESTART) {
                 stepsTable.put(parentTask, step);
@@ -239,15 +272,15 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         NewWorkflow workflow = factory.newWorkflow();
 
         // create the actual "real" task
-        NewTask task = makeTask(step, false);   // the false flag is so that makeTask ignores pre and post-reqs
+        NewTask task = (NewTask) makeTask(step, false);   // the false flag is so that makeTask ignores pre and post-reqs
         task.setParentTask(parentTask);
 
         // first add the pre-req task, if any
         if (preReqBinding != null) {
             // have to create a task for this pre-req and add a constraint so that it goes before
-            final Step preReqStep = ((Reference)preReqBinding.getTarget()).refersTo();
+            final Step preReqStep = ((Reference) preReqBinding.getTarget()).refersTo();
             logger.info("step has prerequisite " + preReqStep.getName() + ", adding constraint");
-            NewTask preReqTask = makeTask(preReqStep);
+            NewTask preReqTask = (NewTask) makeTask(preReqStep);
 
             logger.debug("adding pre-req task " + preReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
             preReqTask.setParentTask(parentTask);
@@ -277,7 +310,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             final Step postReqStep = ((Reference) postReqBinding.getTarget()).refersTo();
             logger.info("step has postrequisite " + postReqStep.getName() + ", adding constraint");
-            NewTask postReqTask = makeTask(postReqStep);
+            NewTask postReqTask = (NewTask) makeTask(postReqStep);
 
             logger.debug("adding post-req task " + postReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
             postReqTask.setParentTask(parentTask);
