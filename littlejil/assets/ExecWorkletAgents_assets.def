@@ -1,0 +1,4 @@
+
+[ExecWorkletAgentAsset psl.workflakes.littlejil.assets.ExecAgentAsset]
+slots = WVMPG
+doc=Representation of a worklet Task executor Asset

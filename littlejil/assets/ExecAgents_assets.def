@@ -1,4 +1,4 @@
-;!generate: org.cougaar.domain.planning.ldm.asset.AssetWriter -Ppsl.workflakes.coolets.assets ExecAgents_assets.def
+;!generate: org.cougaar.tools.build.AssetWriter -Ppsl.workflakes.littlejil.assets ExecAgents_assets.def
 ;;
 ;;  Copyright (c) 2001: The Trustees of Columbia University in the
 ;;  City of New York, Peppo Valetto. All Rights Reserved. 
@@ -6,6 +6,6 @@
 ;; Basis for generating class definitions for Subclasses of Assets
 ;;
 
-[ExecAgentAsset psl.workflakes.littlejil.ExecAgentAssetAdapter]
-slots = ExecutorPG, WVMPG
+[ExecAgentAsset org.cougaar.planning.ldm.asset.AbstractAsset]
+slots = ExecutorPG
 doc=Representation of a Task executor Asset

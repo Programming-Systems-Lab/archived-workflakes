@@ -1,0 +1,4 @@
+
+[ExecClassAgentAsset psl.workflakes.littlejil.assets.ExecAgentAsset]
+slots=ClassPG
+doc=Representation of a Task executor Asset that invokes Java classes
