@@ -68,6 +68,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
     }
 
     Vector exps = new Vector();
+
     public void execute() {
 
         /*for (Enumeration tasks = tasksSubscriptions.getAddedList(); tasks.hasMoreElements();) {
@@ -88,7 +89,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
         }
 
-        // look for changed expansions where the constraints were satisfied...
+        // look for changed expansions that may be done
         for (Enumeration expansions = expansionsSubscription.getChangedList(); expansions.hasMoreElements();) {
             Expansion expansion = (Expansion) expansions.nextElement();
 
@@ -96,47 +97,30 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
             if (expansion.getEstimatedResult() != null) {
                 logger.info(">>>> task " + expansion.getTask().getVerb() + " is done <<<<");
-            }
-            else if (expansion.getReportedResult() == null) {
+            } else if (expansion.getReportedResult() == null) {
                 processExpansion(expansion, false);
             }
 
         }
 
+        // check all expansions for satisfied constraints
         for (Enumeration expansions = expansionsSubscription.elements(); expansions.hasMoreElements();) {
 
             Expansion expansion = (Expansion) expansions.nextElement();
             Workflow wf = expansion.getWorkflow();
-            Constraint constraint = wf.getNextPendingConstraint();
 
-            if (constraint != null) {
+            Constraint constraint;
+            while ((constraint = wf.getNextPendingConstraint()) != null) {
                 logger.info("found a pending constraint: " + PluginUtil.constraintToString(constraint));
                 ConstraintEvent ced = constraint.getConstrainedEventObject();
-                if (ced instanceof SettableConstraintEvent)
-                {
-                    ((SettableConstraintEvent)ced).setValue(constraint.computeValidConstrainedValue());
+                if (ced instanceof SettableConstraintEvent) {
+                    ((SettableConstraintEvent) ced).setValue(constraint.computeValidConstrainedValue());
 
                     Task constrainedTask = constraint.getConstrainedTask();
 
-                    // there could still have other constraints pending! (like prerequisistes)
-                    // FIX: this seems to work now, but when the second constraint is resolved we don't get it
-
-                    boolean remainingConstraints = false;
-                    for (Enumeration constraints = wf.getTaskConstraints(constrainedTask);constraints.hasMoreElements();) {
-                        Constraint c = (Constraint) constraints.nextElement();
-                        if (c.getConstrainedTask() == constrainedTask) {
-                            final double resultValue = c.getConstrainedEventObject().getResultValue();
-                            logger.debug("resultvalue=" + resultValue + ", value=" + c.getConstrainedEventObject().getValue());
-                            if (Double.isNaN(resultValue)) {
-                                logger.debug("one constraint satisfied, but there are still others not satisfied.");
-                                remainingConstraints = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (remainingConstraints)
+                    if (wf.getNextPendingConstraint() != null) {
                         continue;
+                    }
 
                     logger.info("publishing task " + constrainedTask.getVerb());
                     blackboard.publishAdd(constrainedTask);
