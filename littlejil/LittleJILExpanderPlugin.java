@@ -2,6 +2,8 @@ package psl.workflakes.littlejil;
 
 import java.util.Enumeration;
 import java.util.Vector;
+import java.util.Collections;
+import java.util.Arrays;
 
 import laser.littlejil.*;
 import org.apache.log4j.Logger;
@@ -263,7 +265,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             // add this task to the task->steps table
             stepsTable.put(task, step);
-            stepsTable.put(step, task);
         }
         else {
 
@@ -314,7 +315,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             }
 
             for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
-                Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
+                SubstepBinding substepBinding = ((SubstepBinding) substepsEnum.nextElement());
+                Step substep = (Step) substepBinding.getTarget();
 
                 if (choiceAnnotation != null) {
                     choiceAnnotation.addSubstep(substep);
@@ -333,6 +335,28 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
                 // recursive call to create this task -- this will create the task's subtasks, etc
                 NewTask subtask = (NewTask) makeTask(substep);
+
+                // set the parameter bindings for this task
+                LittleJILStepsTable.Entry entry = stepsTable.getEntry(subtask);
+                assert(entry != null);  // all tasks should have an entry
+
+                // initialize the subtasks's in parameters... note that these values might get
+                // updated later by the TaskExpander (if for example the parameters that they are getting
+                // values from are updated by one of the subtasks)
+                for (Enumeration e = substepBinding.parameterBindings(); e.hasMoreElements();) {
+                    ParameterBinding binding = (ParameterBinding) e.nextElement();
+                    if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
+                            binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
+
+                        ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
+                        ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
+
+                        assert(parentDeclaration.getParameterValue() != null);
+                        childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
+                    }
+                }
+
+                entry.setParameterBindings(PluginUtil.collectionFromEnumeration(substepBinding.parameterBindings()));
 
                 logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
                 subtask.setParentTask(task);
