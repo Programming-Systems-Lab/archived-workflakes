@@ -14,6 +14,7 @@ import org.cougaar.util.UnaryPredicate;
 
 import laser.littlejil.HandlerBinding;
 import laser.littlejil.Step;
+import laser.littlejil.NullStep;
 
 /**
  * This plugin handles exceptions that occur in the LittleJIL workflow.
@@ -145,9 +146,9 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     blackboard.publishAdd(request);
 
                     // post a PostHandlerTaskRequest so that the handler task gets posted by LittleJILExpanderPlugin
-                    if (handlerBinding.getTarget() != null) {
+                    if (handlerBinding.getTarget() != null ) {
                         PostHandlerTaskRequest handlerRequest = new PostHandlerTaskRequest(handlerBinding, task);
-                        blackboard.publishAdd(handlerRequest);
+    	                   blackboard.publishAdd(handlerRequest);
                     }
 
 

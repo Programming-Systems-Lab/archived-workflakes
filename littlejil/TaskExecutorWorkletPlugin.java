@@ -74,7 +74,6 @@ public class TaskExecutorWorkletPlugin extends AbstractTaskExecutorPlugin {
     }
 
     protected void executeTask(Allocation allocation, Hashtable inParams) {
-
         ExecWorkletAgentAsset execAgent = (ExecWorkletAgentAsset) allocation.getAsset();
         WVMPG wvmPG = execAgent.getWVMPG();
 
@@ -92,7 +91,6 @@ public class TaskExecutorWorkletPlugin extends AbstractTaskExecutorPlugin {
         logger.info(">>>> launching worklet for task " + allocation.getTask().getVerb());
 
         worklet.deployWorklet(wvm);
-
 
     }
 

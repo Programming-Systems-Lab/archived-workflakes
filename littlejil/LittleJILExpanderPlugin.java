@@ -94,7 +94,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     }
 
     public void setupSubscriptions() {
-
+		System.out.println ("\n*** READY");
         // set up the subscription to get diagrams
         diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
         stepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new StepsTablePredicate());
@@ -169,12 +169,12 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             PostHandlerTaskRequest request = (PostHandlerTaskRequest) e.nextElement();
             HandlerBinding binding = request.getHandlerBinding();
             Task task = request.getTask();
-
-            if (binding.getTarget() != null && binding.getTarget() instanceof Step) {
-
+            
+            AbstractStep as = binding.getTarget();
+            if (as != null && !(as instanceof NullStep)) {
                 logger.debug("found handler binding in blackboard for task: " + task.getVerb());
-
-                NewTask handlerTask = (NewTask) makeTask((Step) binding.getTarget());
+			 
+                NewTask handlerTask = (NewTask) makeTask(findRealStep(as));
 
                 // insert it into the task's workflow (ie, at the same level as the given task)
                 NewWorkflow parentWorkflow = (NewWorkflow) task.getWorkflow();
@@ -238,14 +238,33 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     }
 
+	private Step findRealStep (AbstractStep as) {
+		Step theStep;
+		if (as instanceof Step)
+			theStep = (Step)as;
+		else if (as instanceof Reference)
+			theStep = ((Reference)as).refersTo();
+		// what else could it be?	
+		else {
+			try {
+				logger.warn("Found an AbstractStep that is of class : " + as.getClass().getName());
+				theStep = (Step) as;
+			} catch (ClassCastException cce) {
+				cce.printStackTrace();	
+				theStep = null;
+			}
+			
+		}
+		return theStep;
+	}
 
     /**
      * This method makes a Task from a LittleJIL step, setting the necessary properties and creating
      * a workflow with the step's substeps (if any).
      *
-     */
+     */    
     private Task makeTask(Step step) {
-        return makeTask(step, true);
+    		return makeTask(step, true);
     }
 
 
@@ -269,8 +288,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      * @return a Cougaar Task. If the task has subtasks, the task and its expansion are published
      */
     private Task makeTask(Step step, ExceptionHandlerRequest request, boolean checkRequisites) {
-
-        Task task = (request == null ? null : request.getTask());
+	   Task task = (request == null ? null : request.getTask());
         if (task == null) {
 
             if (checkRequisites && (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
@@ -313,6 +331,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         Task lastTask = null;
 
         if (request != null && request.getType() == ExceptionHandlerRequest.COMPLETE) {
+ 			
             // create a "dummy" task, that will always be "executed" by the ExecutorPlugin, and put in the workflow
             NewTask dummyTask = factory.newTask();
             dummyTask.setVerb(DUMMY_TASK);
@@ -340,8 +359,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
                 SubstepBinding substepBinding = ((SubstepBinding) substepsEnum.nextElement());
-                Step substep = (Step) substepBinding.getTarget();
-
+                Step substep = (Step) findRealStep(substepBinding.getTarget());
+               
                 if (choiceAnnotation != null) {
                     choiceAnnotation.addSubstep(substep);
                     continue;   // we don't create actual tasks at this point
@@ -440,7 +459,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             workflow.setParentTask(task);
             NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, workflow, null);
 
-            //logger.debug("publishing parent task " + task);
+            logger.debug("publishing parent task " + task);
             blackboard.publishAdd(task);
 
             //logger.debug("publishing expansion " + expansion);
@@ -455,8 +474,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             blackboard.publishAdd(exception);
         }
 
-
-        return task;
+	return task;
     }
 
 
@@ -601,7 +619,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                     if (parentDeclaration.getParameterValue() == null) {
 
                         // instantiate it a new parameter value
-                        logger.debug("instantiating a new object for parent parameter " + parentDeclaration.getName());
                         try {
                             Class c = Class.forName(parentDeclaration.getParameterClassName());
 

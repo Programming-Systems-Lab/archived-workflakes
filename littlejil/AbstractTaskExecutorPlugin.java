@@ -110,7 +110,6 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
      * calls the plugin implementation's executeTask() method.
      */
     public void execute() {
-
         // assumming that the LittleJILExpanderPlugin has already published a stepsTable
         stepsTable = (LittleJILStepsTable) stepsTableSubscription.first();
         assert(stepsTable != null);
@@ -120,7 +119,7 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
         assert(resourceTable != null);
 
         for (Enumeration allocations = allocationsSubscription.getAddedList(); allocations.hasMoreElements();) {
-
+	   
             Allocation allocation = (Allocation) allocations.nextElement();
             Task task = allocation.getTask();
 
@@ -128,8 +127,14 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
             Hashtable inParams = new Hashtable();
 
             Step step = stepsTable.getStep(task);
-            assert(step != null);
-
+            //assert(step != null);
+            
+            if (step == null && task.getVerb().toString().equals("DUMMY_TASK")) {
+            	/* DUMMY_TASK used for implementing COMPLETE Handlers 
+            	   nothing needs to be done by the Executor - besides declaring it a success	
+            	*/
+            	taskSucceeded(allocation, null);
+          } else if (step != null) {	
             StepInterface stepInterface = step.getStepInterface();
             if (stepInterface != null) {
                 for (Enumeration params = stepInterface.getParameters(); params.hasMoreElements();) {
@@ -170,8 +175,7 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
 
             // call implemented excuteTask method
             executeTask(allocation, inParams);
-
-
+		}
         }
 
     }
