@@ -14,6 +14,8 @@ import org.cougaar.util.UnaryPredicate;
 
 import java.util.*;
 
+import psl.workflakes.littlejil.assets.ExecAgentAsset;
+
 /**
  * This plugin executes tasks by invoking a method on a class.
  * Classes that are used to execute tasks need to implement the ExecutableTask interface.
@@ -169,8 +171,11 @@ public class TaskExecutorInternalPlugin extends ComponentPlugin {
 
             Hashtable outParams = new Hashtable();
             try {
-                // TODO: use actual class name
-                ExecutableTask executable = new DummyExecutableTask();
+
+                ExecAgentAsset execAgent = (ExecAgentAsset) allocation.getAsset();
+                String className = execAgent.getExecutorPG().getJunction();
+                Class execClass = Class.forName(className);
+                ExecutableTask executable = (ExecutableTask) execClass.newInstance(); //new DummyExecutableTask();
                 executable.execute(task.getVerb().toString(), inParams, outParams);
 
                 // set out parameter values to the ones in the outParams table, and copy them
@@ -212,7 +217,7 @@ public class TaskExecutorInternalPlugin extends ComponentPlugin {
 
     }
 
-    private static class DummyExecutableTask implements ExecutableTask {
+    public static class DummyExecutableTask implements ExecutableTask {
 
         private static Random random = new Random();
 
