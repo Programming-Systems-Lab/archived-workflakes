@@ -83,7 +83,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
         for (Enumeration expansions = expansionsSubscription.getAddedList(); expansions.hasMoreElements();) {
             Expansion expansion = (Expansion) expansions.nextElement();
-            logger.debug("got new expansion " + expansion);
+            //logger.debug("got new expansion " + expansion);
 
             processExpansion(expansion, true);
 
@@ -93,10 +93,10 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         for (Enumeration expansions = expansionsSubscription.getChangedList(); expansions.hasMoreElements();) {
             Expansion expansion = (Expansion) expansions.nextElement();
 
-            logger.debug("got changed expansion: " + expansion);
+            //logger.debug("got changed expansion: " + expansion);
 
             if (expansion.getEstimatedResult() != null) {
-                logger.info(">>>> task " + expansion.getTask().getVerb() + " is done <<<<");
+                logger.info(">>>> parent task " + expansion.getTask().getVerb() + " is done <<<<");
             } else if (expansion.getReportedResult() == null) {
                 processExpansion(expansion, false);
             }
@@ -118,7 +118,10 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                     Task constrainedTask = constraint.getConstrainedTask();
 
-                    if (wf.getNextPendingConstraint() != null) {
+                    // we've resolved this constraint, but before we continue, we should check if
+                    // there aren't more constraints for this task that have not been resolved
+                    if (hasMoreConstraints(wf, constrainedTask)) {
+                        logger.debug("task " + constrainedTask.getVerb() + "has more constraints");
                         continue;
                     }
 
@@ -135,6 +138,29 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         }
 
         PluginHelper.updateAllocationResult(expansionsSubscription);
+
+    }
+
+    /**
+     * Used to see if there are more unresolved constraints on this particular task
+     * @param workflow the workflow of which this task is part of
+     * @param constrainedTask the task to check
+     * @return true if there are any unresolved constraints that constrain the given task
+     */
+    private boolean hasMoreConstraints(Workflow workflow, Task constrainedTask) {
+
+        boolean constrained = false;
+        for (Enumeration e = workflow.getTaskConstraints(constrainedTask);e.hasMoreElements();) {
+            Constraint constraint = (Constraint) e.nextElement();
+
+            if (constraint.getConstrainedTask() == constrainedTask &&
+                    Double.isNaN(constraint.getConstrainedEventObject().getResultValue())) {
+                constrained = true;
+                break;
+            }
+        }
+
+        return constrained;
 
     }
 
