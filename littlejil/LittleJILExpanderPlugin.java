@@ -128,17 +128,30 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
 
         NewTask parentTask = factory.newTask();
-
         parentTask.setVerb(new Verb(step.getName()));
 
         // TODO: should I use different END_TIME prefs? mhmm...
         ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
-                (new AspectValue(AspectType.END_TIME, endTime));
+                (new AspectValue(AspectType.END_TIME, getNextEndTime()));
         Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
         parentTask.setPreference(pref);
-        endTime++;
 
-        logger.debug("created task " + parentTask.getVerb() + " with end_time" + endTime);
+        // make tasks for any handlers that this step has, and put them in the steps table
+        // (they will be used in the ExceptionHandlerPlugin)
+        for (Enumeration handlers = step.handlers();handlers.hasMoreElements();) {
+            HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
+            if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
+                Step handlerStep = (Step) handlerBinding.getTarget();
+                if (handlerStep != null) {
+                    stepsTable.put(handlerStep, makeTask(handlerStep));
+                }
+            }
+        }
+
+        // add this task to the task->steps table
+        stepsTable.put(parentTask, step);
+
+        logger.debug("created task " + parentTask.getVerb());
 
         NewWorkflow workflow = factory.newWorkflow();
 
@@ -188,21 +201,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         }
 
-        // make tasks for any handlers that this step has, and put them in the steps table
-        // (they will be used in the ExceptionHandlerPlugin)
-        for (Enumeration handlers = step.handlers();handlers.hasMoreElements();) {
-            HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
-            if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
-                Step handlerStep = (Step) handlerBinding.getTarget();
-                if (handlerStep != null) {
-                    stepsTable.put(handlerStep, makeTask(handlerStep));
-                }
-            }
-        }
-
-        // finally, add this task to the task->steps table
-        stepsTable.put(parentTask, step);
-
         return parentTask;
     }
 
@@ -225,13 +223,23 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         NewTask parentTask = factory.newTask();
         parentTask.setVerb(new Verb(step.getName() + "Parent"));
 
-        /*ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
-                (new AspectValue(AspectType.END_TIME, endTime));
-        Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
-        parentTask.setPreference(pref);
+        /*// make tasks for any handlers that this step has, and put them in the steps table
+        // (they will be used in the ExceptionHandlerPlugin)
+        for (Enumeration handlers = step.handlers();handlers.hasMoreElements();) {
+            HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
+            if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
+                Step handlerStep = (Step) handlerBinding.getTarget();
+                if (handlerStep != null) {
+                    stepsTable.put(handlerStep, makeTask(handlerStep));
+                }
+            }
+        }
 
-        endTime++;
-        */
+        // add this task to the task->steps table
+        stepsTable.put(parentTask, step);*/
+
+
+
         logger.debug("created parent task " + parentTask.getVerb()/* + " with end_time " + endTime*/);
 
 
@@ -307,7 +315,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         return parentTask;
     }
 
-
+    public static double getNextEndTime() {
+        return endTime++;
+    }
 
 }
 

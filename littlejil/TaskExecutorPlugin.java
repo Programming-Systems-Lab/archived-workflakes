@@ -1,7 +1,6 @@
 package psl.workflakes.littlejil;
 
-import java.util.Enumeration;
-import java.util.Random;
+import java.util.*;
 
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
@@ -28,8 +27,6 @@ public class TaskExecutorPlugin extends ComponentPlugin {
     private DomainService domainService;
     private RootFactory factory;
     private PrototypeRegistryService prototypeRegistry;
-
-
 
     /**
      * Used by the binding utility through reflection to set my DomainService
@@ -96,9 +93,9 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
             boolean success;
             LittleJILException exception = null;
+
             // for TESTING. tasks that contain "Fail" in the name will fail
             if (task.getVerb().toString().indexOf("Fail") != -1) {
-                logger.debug("setting success to false");
                 success = false;
 
                 // exception to be published
@@ -125,12 +122,14 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
             // have to do this inside a transaction, since we are not in the execute() method
             try {
-                logger.info(">>> task " + task.getVerb() + " finished. updating allocation result");
+
                 blackboard.openTransaction();
 
                 if (success) {
+                    logger.info(">>> task " + task.getVerb() + " finished. updating allocation result");
                     allocation.setEstimatedResult(result);
                 } else {
+                    logger.info(">>> task " + task.getVerb() + " failed. updating allocation result");
                     ((PlanElementForAssessor)allocation).setReceivedResult(result);
                 }
 

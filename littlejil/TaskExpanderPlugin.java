@@ -84,7 +84,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
             Constraint constraint;
             while ((constraint = wf.getNextPendingConstraint()) != null) {
-                logger.info("found a pending constraint: " + PluginUtil.constraintToString(constraint));
+                logger.debug("found a pending constraint: " + PluginUtil.constraintToString(constraint));
                 ConstraintEvent ced = constraint.getConstrainedEventObject();
                 if (ced instanceof SettableConstraintEvent) {
                     ((SettableConstraintEvent) ced).setValue(constraint.computeValidConstrainedValue());
