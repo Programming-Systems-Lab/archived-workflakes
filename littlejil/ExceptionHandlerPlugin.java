@@ -238,9 +238,18 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         // throw it up to the parent
                         logger.debug("deferring restart handler to parent");
 
+                        // we also need to remove this task's start_time pref, otherwise the new posted expansion
+                        // will start right away
+                        if (task.getPreference(AspectType.START_TIME) != null && task.getPreference(AspectType.END_TIME) != null) {
+                            logger.debug("resetting preferences of task " + task.getVerb());
+                            Vector v = new Vector();
+                            v.add(task.getPreference(AspectType.END_TIME));
+                            ((NewTask)task).setPreferences(v.elements());
+                        }
+
                         // re-publish the task's workflow
-                        blackboard.publishAdd(factory.createExpansion(task.getPlan(), task, originalWorkflow, null));
                         blackboard.publishChange(task);
+                        blackboard.publishAdd(factory.createExpansion(task.getPlan(), task, originalWorkflow, null));
 
                         blackboard.publishAdd(new LittleJILException(exception));
                         continue;   // with the for (Enumeration exceptions...)
@@ -364,6 +373,15 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
             if (task.getPlanElement() != null && task.getPlanElement() instanceof Allocation) {
                 logger.debug("removing allocation for task " + task.getVerb());
                 blackboard.publishRemove(task.getPlanElement());
+            }
+
+            // if this task was constrained and it ran, it's start_time preference will be set.
+            // in that case, we need to remove that preference
+            if (task.getPreference(AspectType.START_TIME) != null && task.getPreference(AspectType.END_TIME) != null) {
+                logger.debug("resetting preferences of task " + task.getVerb());
+                Vector v = new Vector();
+                v.add(task.getPreference(AspectType.END_TIME));
+                ((NewTask)task).setPreferences(v.elements());
             }
 
             newWorkflow.addTask(task);
