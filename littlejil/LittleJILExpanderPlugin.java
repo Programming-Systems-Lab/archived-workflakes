@@ -42,45 +42,26 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     public void setupSubscriptions() {
 
-        BlackboardService blackboardService = getBlackboardService();
-
-        Diagram diagram = null;
-        try {
-            ObjectInputStream objIn = new ObjectInputStream(
-                    new BufferedInputStream(new FileInputStream(DIAGRAM_FILENAME)));
-
-            Program program = (Program) objIn.readObject();
-            diagram = program.getRootDiagram();
-
-        } catch (Exception e) {
-            logger.fatal("Could not load diagram: " + e);
-            return;
-        }
-
-        blackboardService.publishAdd(diagram);
-        logger.debug("published diagram");
-
-        // now set up the subscription to get diagrams
-        diagramSubscription = (IncrementalSubscription) blackboardService.subscribe(new UnaryPredicate () {
+       // set up the subscription to get diagrams
+        diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new UnaryPredicate () {
             public boolean execute(Object o) {
                 return (o instanceof Diagram);
             }
         });
 
+        logger.info("ready.");
 
     }
 
     public void execute() {
 
         for (Enumeration e = diagramSubscription.getAddedList();e.hasMoreElements();) {
-            logger.debug("found diagram in blackboard:");
+
             Diagram diagram = (Diagram) e.nextElement();
-            //LittleJILXMLParser.outputDiagram(diagram);
+            logger.info("found diagram in blackboard: " + diagram.getName());
 
             logger.debug("creating tasks...");
             Task task = makeTasks(diagram);
-
-            blackboard.publishAdd(task);
 
         }
 
@@ -120,7 +101,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         // get subsets of this step and create tasks for those, and a workflow to put them in
         NewWorkflow workflow = factory.newWorkflow();
 
-        // NOTE: I'm assuming that the tasks are returned in the correct order
+        // NOTE: tasks are returned in the correct order (according to Little-JIL API docs)
         Task lastTask = null;
         for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
             Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
@@ -129,10 +110,17 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             logger.debug("adding task " + task.getVerb() + " to workflow of task " + parentTask.getVerb());
             task.setParentTask(parentTask);
             workflow.addTask(task);
+            task.setWorkflow(workflow);
+
+            // TODO: should I use different END_TIME prefs? mhmm...
+            ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
+                    (new AspectValue(AspectType.END_TIME, 1.0));
+            Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
+            task.setPreference(pref);
 
             // if the parent step is sequential, set this task so it starts after the previous ends
             if (step.getStepKind() == Step.SEQUENTIAL && lastTask != null) {
-                logger.debug("making constraint so that task " + task.getVerb() + " goes after " + lastTask.getVerb());
+                logger.info("making constraint so that task " + task.getVerb() + " goes after " + lastTask.getVerb());
 
                 NewConstraint constraint = factory.newConstraint();
                 constraint.setConstrainingTask(lastTask);
@@ -144,19 +132,48 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                 constraint.setConstraintOrder(Constraint.BEFORE);
 
                 workflow.addConstraint(constraint);
+
             }
 
             // TODO: choice and try
-            // TODO: pre and post requisites
+            if (substep.getPrerequisite() != null) {
+                final Step preReqStep = ((Reference) substep.getPrerequisite().getTarget()).refersTo();
+                logger.info("step has prerequisite " + preReqStep.getName() + " adding constraint");
+                NewTask preReqTask = makeTask(preReqStep);
+                preReqTask.setPreference(pref);
+
+                workflow.addTask(preReqTask);
+                preReqTask.setWorkflow(workflow);
+
+                // add constraint so that this task gets done before
+                NewConstraint constraint = factory.newConstraint();
+                constraint.setConstrainingTask(preReqTask);
+                constraint.setConstrainingAspect(AspectType.END_TIME);
+
+                constraint.setConstrainedTask(task);
+                constraint.setConstrainedAspect(AspectType.START_TIME);
+
+                constraint.setConstraintOrder(Constraint.BEFORE);
+
+                workflow.addConstraint(constraint);
+
+            }
 
             lastTask = task;
         }
 
         if (lastTask != null) {
-            parentTask.setWorkflow(workflow);
             workflow.setParentTask(parentTask);
-            logger.debug("set workflow " + workflow + " to task " + parentTask.getVerb());
+            NewExpansion expansion = (NewExpansion) factory.createExpansion(parentTask.getPlan(), parentTask, workflow, null);
+
+            logger.debug("publishing parent task " + parentTask);
+            blackboard.publishAdd(parentTask);
+
+            logger.debug("publishing expansion " + expansion);
+            blackboard.publishAdd(expansion);
+
         }
+
         return parentTask;
     }
 
