@@ -1,6 +1,6 @@
 rem Script to generate asset classes
 set PSL_HOME=C:\pslcvs
-set ALP_INSTALL_PATH=%PSL_HOME%\jars\cougaar
+set ALP_INSTALL_PATH=%PSL_HOME%\tools\cougaar-8.8
 
 set LIBPATHS=%ALP_INSTALL_PATH%\lib\core.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\build.jar

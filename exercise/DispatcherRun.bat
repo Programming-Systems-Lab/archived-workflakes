@@ -1,7 +1,7 @@
 @echo OFF
 
 set PSL_HOME=C:\pslcvs
-set ALP_INSTALL_PATH=%PSL_HOME%\jars\cougaar
+set ALP_INSTALL_PATH=%PSL_HOME%\tools\cougaar-8.8
 
 if "%ALP_INSTALL_PATH%"=="" goto AIP_ERROR
 if "%1"=="" goto ARG_ERROR
@@ -9,7 +9,7 @@ if "%1"=="" goto ARG_ERROR
 set LIBPATHS=%ALP_INSTALL_PATH%\lib\core.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\glm.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\planserver.jar
-set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\sys\xerces.jar
+set LIBPATHS=%LIBPATHS%;%PSL_HOME%\jars\xerces.jar
 set LIBPATHS=%LIBPATHS%;%PSL_HOME%
 set LIBPATHS=.;%LIBPATHS%
 

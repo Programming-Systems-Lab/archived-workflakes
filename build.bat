@@ -4,7 +4,7 @@ echo on
 
 rem compile the code
 set PSL_HOME=C:\pslcvs
-set ALP_INSTALL_PATH=%PSL_HOME%\jars\cougaar\
+set ALP_INSTALL_PATH=%PSL_HOME%\tools\cougaar-8.8
 
 rem generate assets
 call makeassets

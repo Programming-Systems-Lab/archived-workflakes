@@ -245,6 +245,29 @@ public class SienaLDMPlugIn
     	}
     	System.out.println("Out of InsertTask()");
 	}
+	
+	public void setPrepositionalPhrases (NewTask t, Vector phrases) {
+		boolean inTrans = false;
+		try {
+			if (getBlackboardService().getSubscriber().isMyTransaction() == false) {
+	      		openTransaction();
+	      		inTrans = true;
+	      	}
+	      	t.setPrepositionalPhrases(phrases.elements());
+	      	} catch (Exception e) {
+      		synchronized (System.err) {
+      			System.err.println ("Couldn't add preposition top task " + t.getVerb());
+        		System.err.println("Caught "+e);
+        		e.printStackTrace();
+        	}
+      	}
+   		finally {
+   			if (inTrans == true) {
+      			closeTransaction();
+      			inTrans = false;
+      		}
+    	}
+	}
 
         /**
          * Utility method to insert a new workflow task onto the Cougaar blackboard.
@@ -273,6 +296,8 @@ public class SienaLDMPlugIn
       		}
     	}
 	}
+	
+	public NewTask newTask() { return theLDMF.newTask(); }
 
 	private NewTask makeNewTask(String verbName) {
 		NewTask nt = theLDMF.newTask();

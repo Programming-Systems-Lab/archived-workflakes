@@ -278,7 +278,7 @@ public class AllocatorPlugIn
     Verb taskVerb = theTask.getVerb();
     Asset dirObj = theTask.getDirectObject();
     WorkletJunction taskJunction = null;
-    TaskReturnJunction homeJunction = new TaskReturnJunction (comAddress, WVMName, comPort);
+    TaskReturnJunction homeJunction = new TaskReturnJunction (comAddress, WVMName, myWVM.getPort());
     homeJunction.setAllocID (a.getUID());
     homeJunction.setExecID (executor.getUID());
     homeJunction.setClusterID (getClusterIdentifier().toString());

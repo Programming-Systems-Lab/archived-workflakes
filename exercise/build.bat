@@ -2,7 +2,7 @@ rem Script to compile tutorial project
 
 echo on
 set PSL_HOME=C:\pslcvs
-set ALP_INSTALL_PATH=%PSL_HOME%\jars\cougaar\
+set ALP_INSTALL_PATH=%PSL_HOME%\tools\cougaar-8.8
 
 rem Regenerate and recompile all property/asset files
 call makeassets

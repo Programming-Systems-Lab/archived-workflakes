@@ -19,7 +19,7 @@
  * </copyright>
  */
 
-/* @generated Tue May 21 11:59:24 CEST 2002 from ExecAgents_assets.def - DO NOT HAND EDIT */
+/* @generated Wed Jun 26 00:13:45 CEST 2002 from ExecAgents_assets.def - DO NOT HAND EDIT */
 package psl.workflakes.coolets.assets;
 import org.cougaar.domain.planning.ldm.asset.*;
 import java.io.ObjectOutputStream;

@@ -8,6 +8,7 @@
 package psl.workflakes.coolets.adaptors;
 
 import java.lang.reflect.Method;
+import java.util.Vector;
 
 import siena.*;
 import org.cougaar.domain.planning.ldm.asset.*;
@@ -67,4 +68,7 @@ public interface SienaLDMAdaptorInf
          * @return the newly created <code>Asset</code>
          */
 	public Asset newAsset(String proto);
+	
+	public NewTask newTask();
+	public void setPrepositionalPhrases (NewTask t, Vector phrases);
 }

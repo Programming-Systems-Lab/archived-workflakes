@@ -19,7 +19,7 @@
  * </copyright>
  */
 
-/* @generated Tue May 21 12:03:25 CEST 2002 from programmer_assets.def - DO NOT HAND EDIT */
+/* @generated Wed May 22 14:27:04 CEST 2002 from programmer_assets.def - DO NOT HAND EDIT */
 package psl.workflakes.exercise.tutorial.assets;
 import org.cougaar.domain.planning.ldm.asset.*;
 import java.io.ObjectOutputStream;
