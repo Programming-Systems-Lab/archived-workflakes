@@ -1,16 +1,25 @@
 /*
  * <copyright>
- * Copyright 1997-2000 Defense Advanced Research Projects Agency (DARPA)
- * and ALPINE (A BBN Technologies (BBN) and Raytheon Systems Company
- * (RSC) Consortium). This software to be used in accordance with the
- * COUGAAR license agreement.  The license agreement and other
- * information on the Cognitive Agent Architecture (COUGAAR) Project can
- * be found at http://www.cougaar.org or email: info@cougaar.org.
+ *  Copyright 1997-2001 BBNT Solutions, LLC
+ *  under sponsorship of the Defense Advanced Research Projects Agency (DARPA).
+ * 
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the Cougaar Open Source License as published by
+ *  DARPA on the Cougaar Open Source Website (www.cougaar.org).
+ * 
+ *  THE COUGAAR SOFTWARE AND ANY DERIVATIVE SUPPLIED BY LICENSOR IS
+ *  PROVIDED 'AS IS' WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR
+ *  IMPLIED, INCLUDING (BUT NOT LIMITED TO) ALL IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, AND WITHOUT
+ *  ANY WARRANTIES AS TO NON-INFRINGEMENT.  IN NO EVENT SHALL COPYRIGHT
+ *  HOLDER BE LIABLE FOR ANY DIRECT, SPECIAL, INDIRECT OR CONSEQUENTIAL
+ *  DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE OF DATA OR PROFITS,
+ *  TORTIOUS CONDUCT, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ *  PERFORMANCE OF THE COUGAAR SOFTWARE.
  * </copyright>
  */
 
-// source machine generated at Wed Mar 27 15:03:32 CET 2002 - Do not edit
-/* @generated */
+/* @generated Tue May 21 11:59:24 CEST 2002 from properties.def - DO NOT HAND EDIT */
 /** Primary client interface for ExecutorPG.
  * properties of an executor agent
  *  @see NewExecutorPG
@@ -36,20 +45,20 @@ public interface ExecutorPG extends PropertyGroup, org.cougaar.domain.planning.l
 
   // introspection and construction
   /** the method of factoryClass that creates this type **/
-  public static final String factoryMethod = "newExecutorPG";
+  String factoryMethod = "newExecutorPG";
   /** the (mutable) class type returned by factoryMethod **/
-  public static final String mutableClass = "psl.workflakes.coolets.assets.NewExecutorPG";
+  String mutableClass = "psl.workflakes.coolets.assets.NewExecutorPG";
   /** the factory class **/
-  public static final Class factoryClass = psl.workflakes.coolets.assets.PropertyGroupFactory.class;
+  Class factoryClass = psl.workflakes.coolets.assets.PropertyGroupFactory.class;
   /** the (immutable) class type returned by domain factory **/
-  public static final Class primaryClass = psl.workflakes.coolets.assets.ExecutorPG.class;
-  public static final String assetSetter = "setExecutorPG";
-  public static final String assetGetter = "getExecutorPG";
+   Class primaryClass = psl.workflakes.coolets.assets.ExecutorPG.class;
+  String assetSetter = "setExecutorPG";
+  String assetGetter = "getExecutorPG";
   /** The Null instance for indicating that the PG definitely has no value **/
-  public static final ExecutorPG nullPG = new Null_ExecutorPG();
+  ExecutorPG nullPG = new Null_ExecutorPG();
 
 /** Null_PG implementation for ExecutorPG **/
-static final class Null_ExecutorPG
+final class Null_ExecutorPG
   implements ExecutorPG, Null_PG
 {
   public String getCapabilities() { throw new UndefinedValueException(); }
@@ -74,7 +83,7 @@ static final class Null_ExecutorPG
 }
 
 /** Future PG implementation for ExecutorPG **/
-public final static class Future
+final class Future
   implements ExecutorPG, Future_PG
 {
   public String getCapabilities() {

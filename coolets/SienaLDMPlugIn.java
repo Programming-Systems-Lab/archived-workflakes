@@ -71,7 +71,10 @@ public class SienaLDMPlugIn
 		hd = setupDispatcher(senpURL);
 
 		if (hd != null) {
-			ClusterServesPlugIn cluster = getCluster();
+			ClusterServesPlugIn cluster = getDelegate().getCluster();
+			if (cluster == null) {
+				throw new RuntimeException("Cannot get handle to cluster from plugin");
+			}
 			if (cluster instanceof WorkletClusterImpl) {
 				((WorkletClusterImpl)cluster).setSienaGateway (this);
 			}
@@ -163,7 +166,7 @@ public class SienaLDMPlugIn
 	public void insertAsset (Asset someAsset) {
 		boolean inTrans = false;
 		try {
-			if (getSubscriber().isMyTransaction() == false) {
+			if (getBlackboardService().getSubscriber().isMyTransaction() == false) {
       			openTransaction();
       			inTrans = true;
       		}
@@ -190,7 +193,7 @@ public class SienaLDMPlugIn
 	public void changeAsset (Asset someAsset) {
 		boolean inTrans = false;
 		try {
-			if (getSubscriber().isMyTransaction() == false) {
+			if (getBlackboardService().getSubscriber().isMyTransaction() == false) {
       			openTransaction();
       			inTrans = true;
       		}
@@ -220,7 +223,7 @@ public class SienaLDMPlugIn
 		System.out.println("In InsertTask()");
 
 		try {
-			if (getSubscriber().isMyTransaction() == false) {
+			if (getBlackboardService().getSubscriber().isMyTransaction() == false) {
 	      		openTransaction();
 	      		inTrans = true;
 	      	}
@@ -250,7 +253,7 @@ public class SienaLDMPlugIn
 	public void insertTask (NewTask someTask) {
 		boolean inTrans = false;
 		try {
-			if (getSubscriber().isMyTransaction() == false) {
+			if (getBlackboardService().getSubscriber().isMyTransaction() == false) {
 	      		openTransaction();
 	      		inTrans = true;
 	      	}

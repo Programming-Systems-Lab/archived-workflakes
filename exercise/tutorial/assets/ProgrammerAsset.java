@@ -1,16 +1,25 @@
 /*
  * <copyright>
- * Copyright 1997-2000 Defense Advanced Research Projects Agency (DARPA)
- * and ALPINE (A BBN Technologies (BBN) and Raytheon Systems Company
- * (RSC) Consortium). This software to be used in accordance with the
- * COUGAAR license agreement.  The license agreement and other
- * information on the Cognitive Agent Architecture (COUGAAR) Project can
- * be found at http://www.cougaar.org or email: info@cougaar.org.
+ *  Copyright 1997-2001 BBNT Solutions, LLC
+ *  under sponsorship of the Defense Advanced Research Projects Agency (DARPA).
+ * 
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the Cougaar Open Source License as published by
+ *  DARPA on the Cougaar Open Source Website (www.cougaar.org).
+ * 
+ *  THE COUGAAR SOFTWARE AND ANY DERIVATIVE SUPPLIED BY LICENSOR IS
+ *  PROVIDED 'AS IS' WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR
+ *  IMPLIED, INCLUDING (BUT NOT LIMITED TO) ALL IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, AND WITHOUT
+ *  ANY WARRANTIES AS TO NON-INFRINGEMENT.  IN NO EVENT SHALL COPYRIGHT
+ *  HOLDER BE LIABLE FOR ANY DIRECT, SPECIAL, INDIRECT OR CONSEQUENTIAL
+ *  DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE OF DATA OR PROFITS,
+ *  TORTIOUS CONDUCT, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ *  PERFORMANCE OF THE COUGAAR SOFTWARE.
  * </copyright>
  */
 
-// source machine generated at Mon Mar 11 23:51:00 CET 2002 - Do not edit
-/* @generated */
+/* @generated Tue May 21 12:03:25 CEST 2002 from programmer_assets.def - DO NOT HAND EDIT */
 package psl.workflakes.exercise.tutorial.assets;
 import org.cougaar.domain.planning.ldm.asset.*;
 import java.io.ObjectOutputStream;
@@ -114,6 +123,44 @@ public class ProgrammerAsset extends psl.workflakes.exercise.tutorial.Programmer
       mySkillsPG=(SkillsPG)pg;
     } else
       super.setLocalPG(c,pg);
+  }
+
+  public void setLocalPGSchedule(PropertyGroupSchedule pgSchedule) {
+      super.setLocalPGSchedule(pgSchedule);
+  }
+
+  public PropertyGroup removeLocalPG(Class c) {
+    PropertyGroup removed = null;
+    if (LanguagePG.class.equals(c)) {
+      removed=myLanguagePG;
+      myLanguagePG=null;
+    } else
+    if (SkillsPG.class.equals(c)) {
+      removed=mySkillsPG;
+      mySkillsPG=null;
+    } else
+      removed=super.removeLocalPG(c);
+    return removed;
+  }
+
+  public PropertyGroup removeLocalPG(PropertyGroup pg) {
+    PropertyGroup removed = null;
+    Class pgc = pg.getPrimaryClass();
+    if (LanguagePG.class.equals(pgc)) {
+      removed=myLanguagePG;
+      myLanguagePG=null;
+    } else
+    if (SkillsPG.class.equals(pgc)) {
+      removed=mySkillsPG;
+      mySkillsPG=null;
+    } else
+      removed= super.removeLocalPG(pg);
+    return removed;
+  }
+
+  public PropertyGroupSchedule removeLocalPGSchedule(Class c) {
+    PropertyGroupSchedule removed = null;
+    return removed;
   }
 
   public PropertyGroup generateDefaultPG(Class c) {

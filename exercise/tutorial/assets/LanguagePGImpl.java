@@ -1,16 +1,25 @@
 /*
  * <copyright>
- * Copyright 1997-2000 Defense Advanced Research Projects Agency (DARPA)
- * and ALPINE (A BBN Technologies (BBN) and Raytheon Systems Company
- * (RSC) Consortium). This software to be used in accordance with the
- * COUGAAR license agreement.  The license agreement and other
- * information on the Cognitive Agent Architecture (COUGAAR) Project can
- * be found at http://www.cougaar.org or email: info@cougaar.org.
+ *  Copyright 1997-2001 BBNT Solutions, LLC
+ *  under sponsorship of the Defense Advanced Research Projects Agency (DARPA).
+ * 
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the Cougaar Open Source License as published by
+ *  DARPA on the Cougaar Open Source Website (www.cougaar.org).
+ * 
+ *  THE COUGAAR SOFTWARE AND ANY DERIVATIVE SUPPLIED BY LICENSOR IS
+ *  PROVIDED 'AS IS' WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR
+ *  IMPLIED, INCLUDING (BUT NOT LIMITED TO) ALL IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, AND WITHOUT
+ *  ANY WARRANTIES AS TO NON-INFRINGEMENT.  IN NO EVENT SHALL COPYRIGHT
+ *  HOLDER BE LIABLE FOR ANY DIRECT, SPECIAL, INDIRECT OR CONSEQUENTIAL
+ *  DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE OF DATA OR PROFITS,
+ *  TORTIOUS CONDUCT, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ *  PERFORMANCE OF THE COUGAAR SOFTWARE.
  * </copyright>
  */
 
-// source machine generated at Mon Mar 11 23:51:01 CET 2002 - Do not edit
-/* @generated */
+/* @generated Tue May 21 12:03:26 CEST 2002 from properties.def - DO NOT HAND EDIT */
 /** Implementation of LanguagePG.
  *  @see LanguagePG
  *  @see NewLanguagePG
@@ -35,7 +44,7 @@ public class LanguagePGImpl extends java.beans.SimpleBeanInfo
   implements NewLanguagePG, Cloneable
 {
   public LanguagePGImpl() {
-  };
+  }
 
   // Slots
 
@@ -106,8 +115,7 @@ public class LanguagePGImpl extends java.beans.SimpleBeanInfo
   public NewPropertyGroup unlock(Object key) { return this; }
 
   public Object clone() throws CloneNotSupportedException {
-    LanguagePGImpl _tmp = new LanguagePGImpl(this);
-    return _tmp;
+    return new LanguagePGImpl(LanguagePGImpl.this);
   }
 
   public PropertyGroup copy() {
@@ -132,7 +140,7 @@ public class LanguagePGImpl extends java.beans.SimpleBeanInfo
       properties[0]= new PropertyDescriptor("knowsJava", LanguagePG.class, "getKnowsJava", null);
       properties[1]= new PropertyDescriptor("knowsJavaScript", LanguagePG.class, "getKnowsJavaScript", null);
     } catch (Exception e) { System.err.println("Caught: "+e); e.printStackTrace(); }
-  };
+  }
 
   public PropertyDescriptor[] getPropertyDescriptors() {
     return properties;
@@ -161,8 +169,11 @@ public class LanguagePGImpl extends java.beans.SimpleBeanInfo
     }
 
     public PropertyGroup copy() {
-      return new LanguagePGImpl(LanguagePGImpl.this);
+      try {
+        return (PropertyGroup) clone();
+      } catch (CloneNotSupportedException cnse) { return null;}
     }
+
 
     public Object clone() throws CloneNotSupportedException {
       return new LanguagePGImpl(LanguagePGImpl.this);

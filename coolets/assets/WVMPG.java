@@ -1,16 +1,25 @@
 /*
  * <copyright>
- * Copyright 1997-2000 Defense Advanced Research Projects Agency (DARPA)
- * and ALPINE (A BBN Technologies (BBN) and Raytheon Systems Company
- * (RSC) Consortium). This software to be used in accordance with the
- * COUGAAR license agreement.  The license agreement and other
- * information on the Cognitive Agent Architecture (COUGAAR) Project can
- * be found at http://www.cougaar.org or email: info@cougaar.org.
+ *  Copyright 1997-2001 BBNT Solutions, LLC
+ *  under sponsorship of the Defense Advanced Research Projects Agency (DARPA).
+ * 
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the Cougaar Open Source License as published by
+ *  DARPA on the Cougaar Open Source Website (www.cougaar.org).
+ * 
+ *  THE COUGAAR SOFTWARE AND ANY DERIVATIVE SUPPLIED BY LICENSOR IS
+ *  PROVIDED 'AS IS' WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR
+ *  IMPLIED, INCLUDING (BUT NOT LIMITED TO) ALL IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, AND WITHOUT
+ *  ANY WARRANTIES AS TO NON-INFRINGEMENT.  IN NO EVENT SHALL COPYRIGHT
+ *  HOLDER BE LIABLE FOR ANY DIRECT, SPECIAL, INDIRECT OR CONSEQUENTIAL
+ *  DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE OF DATA OR PROFITS,
+ *  TORTIOUS CONDUCT, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ *  PERFORMANCE OF THE COUGAAR SOFTWARE.
  * </copyright>
  */
 
-// source machine generated at Wed Mar 27 15:03:32 CET 2002 - Do not edit
-/* @generated */
+/* @generated Tue May 21 11:59:24 CEST 2002 from properties.def - DO NOT HAND EDIT */
 /** Primary client interface for WVMPG.
  * properties identifying a WVM for requesting a junction
  *  @see NewWVMPG
@@ -39,20 +48,20 @@ public interface WVMPG extends PropertyGroup, org.cougaar.domain.planning.ldm.dq
 
   // introspection and construction
   /** the method of factoryClass that creates this type **/
-  public static final String factoryMethod = "newWVMPG";
+  String factoryMethod = "newWVMPG";
   /** the (mutable) class type returned by factoryMethod **/
-  public static final String mutableClass = "psl.workflakes.coolets.assets.NewWVMPG";
+  String mutableClass = "psl.workflakes.coolets.assets.NewWVMPG";
   /** the factory class **/
-  public static final Class factoryClass = psl.workflakes.coolets.assets.PropertyGroupFactory.class;
+  Class factoryClass = psl.workflakes.coolets.assets.PropertyGroupFactory.class;
   /** the (immutable) class type returned by domain factory **/
-  public static final Class primaryClass = psl.workflakes.coolets.assets.WVMPG.class;
-  public static final String assetSetter = "setWVMPG";
-  public static final String assetGetter = "getWVMPG";
+   Class primaryClass = psl.workflakes.coolets.assets.WVMPG.class;
+  String assetSetter = "setWVMPG";
+  String assetGetter = "getWVMPG";
   /** The Null instance for indicating that the PG definitely has no value **/
-  public static final WVMPG nullPG = new Null_WVMPG();
+  WVMPG nullPG = new Null_WVMPG();
 
 /** Null_PG implementation for WVMPG **/
-static final class Null_WVMPG
+final class Null_WVMPG
   implements WVMPG, Null_PG
 {
   public String getAddress() { throw new UndefinedValueException(); }
@@ -79,7 +88,7 @@ static final class Null_WVMPG
 }
 
 /** Future PG implementation for WVMPG **/
-public final static class Future
+final class Future
   implements WVMPG, Future_PG
 {
   public String getAddress() {

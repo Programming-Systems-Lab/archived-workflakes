@@ -281,8 +281,8 @@ public class AllocatorPlugIn
     TaskReturnJunction homeJunction = new TaskReturnJunction (comAddress, WVMName, comPort);
     homeJunction.setAllocID (a.getUID());
     homeJunction.setExecID (executor.getUID());
-    homeJunction.setClusterID (getCluster().getClusterIdentifier().toString());
-    homeJunction.setPluginID (getSubscriptionClientName());
+    homeJunction.setClusterID (getClusterIdentifier().toString());
+    homeJunction.setPluginID (getBlackboardClientName());
     Worklet taskWkl = new Worklet(homeJunction);
     Class juncClass = null;
     String juncClassName = executor.getExecutorPG().getJunction();

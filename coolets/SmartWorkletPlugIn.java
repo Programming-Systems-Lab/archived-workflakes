@@ -61,11 +61,14 @@ public class SmartWorkletPlugIn
          */
 	protected void setupSubscriptions()
 	{
-		ClusterServesPlugIn cluster = getCluster();
+		ClusterServesPlugIn cluster = getDelegate().getCluster();
+		if (cluster == null) {
+			throw new RuntimeException("Cannot get handle to cluster from plugin");
+		}
 		comPort = Communications.getPort();
-		uniqueName = cluster.getClusterIdentifier().toString();
+		uniqueName = getClusterIdentifier().toString();
 
-		String pluginName = getSubscriptionClientName();
+		String pluginName = getBlackboardClientName();
 		try {
 			comAddress = InetAddress.getLocalHost().getHostName();
 		} catch (java.net.UnknownHostException e) {

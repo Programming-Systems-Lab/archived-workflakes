@@ -31,7 +31,7 @@ public class Exc6WklDispatcher {
       
       // worklet for ManagementAllocator
       Worklet wkl = new Worklet(null);
-      MgrAllocJunction junc1 = new MgrAllocJunction(rHost, "Exc6Node_WVM", 9101);
+      MgrAllocJunction junc1 = new MgrAllocJunction(rHost, rName, rPort);
       junc1.setPred (new isTaskPredicate());
       junc1.setClusterID ("Management");
       junc1.setPluginID ("psl.workflakes.exercise.tutorial.ManagerAllocatorPlugIn[]");
@@ -40,7 +40,7 @@ public class Exc6WklDispatcher {
       
       // worklet for DevelopmentAllocator
       wkl = new Worklet(null);
-      DevAllocJunction junc2 = new DevAllocJunction(rHost, "Exc6Node_WVM", 9101);
+      DevAllocJunction junc2 = new DevAllocJunction(rHost, "Exc6NodeDev_WVM", 9101);
       junc2.setPred (new isDevTaskPredicate());
       junc2.setClusterID ("Development");
       junc2.setPluginID ("psl.workflakes.exercise.tutorial.DevelopmentAllocatorPlugIn[]");

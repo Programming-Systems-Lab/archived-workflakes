@@ -15,6 +15,7 @@ import java.util.Set;
 import java.lang.reflect.*;
 import java.net.*;
 
+import org.cougaar.core.component.ServiceBroker;
 import org.cougaar.core.cluster.IncrementalSubscription;
 import org.cougaar.util.StateModelException;
 import org.cougaar.util.UnaryPredicate;
@@ -82,19 +83,42 @@ public class WorkletPlugIn
 
 	private String host;
 
-        /**
-         * Overrides <code>setupSubScriptions()</code> in <code>SimplePlugIn</code>.
-         * Subclasses of <code>WorkletPlugIn</code> can override this method to set up
-         * "fixed" subscriptions on their own, and require "flexible" subscriptions from
-         * {@link CooletIncomingJunction CooletIncomingJunctions}
-         */
-        protected void setupSubscriptions()
+	public void load()
+		throws StateModelException {
+		super.load();
+		ServiceBroker sb = getDelegate().getServiceBroker();
+	 	WklPlugInRegService wklreg = (WklPlugInRegService) sb.getService(this, WklPlugInRegService.class, null);
+	 	wklreg.registerPlugIn(this.getClusterIdentifier(), this);
+	 	WVMName = wklreg.getWVMName();
+	 	myWVM = wklreg.getWVM();
+	 	sb.releaseService(this, WklPlugInRegService.class, wklreg);		
+	}
+	
+	public void unload()
+		throws StateModelException {
+		ServiceBroker sb = getDelegate().getServiceBroker();
+	 	WklPlugInRegService wklreg = (WklPlugInRegService) sb.getService(this, WklPlugInRegService.class, null);
+	 	wklreg.unRegisterPlugIn(this.getClusterIdentifier(), this);
+	 	sb.releaseService(this, WklPlugInRegService.class, wklreg);
+		super.unload();		
+	}
+    /**
+     * Overrides <code>setupSubScriptions()</code> in <code>SimplePlugIn</code>.
+     * Subclasses of <code>WorkletPlugIn</code> can override this method to set up
+     * "fixed" subscriptions on their own, and require "flexible" subscriptions from
+     * {@link CooletIncomingJunction CooletIncomingJunctions}
+     */
+    protected void setupSubscriptions()
 	{
-		ClusterServesPlugIn cluster = getCluster();
+		ClusterServesPlugIn cluster = getDelegate().getCluster();
+		if (cluster == null) {
+			throw new RuntimeException("Cannot get handle to cluster from plugin");
+		}
+			
 		comPort = Communications.getPort();
-		uniqueName = cluster.getClusterIdentifier().toString();
+		uniqueName = getClusterIdentifier().toString();
 
-		String pluginName = getSubscriptionClientName();
+		String pluginName = getBlackboardClientName();
 		try {
 			comAddress = InetAddress.getLocalHost().getHostName();
 		} catch (java.net.UnknownHostException e) {
@@ -103,19 +127,6 @@ public class WorkletPlugIn
       		System.exit(0);
       	}
 		System.out.println ("Cluster name: " + uniqueName + " PlugIn name: " + pluginName);
-		//System.out.println (this.toString());
-		// myWVM = new WVM (this, comAddress, uniqueName, comPort);
-
-		// now get a handle for the Node's WVM
-		if (cluster instanceof WorkletClusterImpl) {
-			myWVM = ((WorkletClusterImpl)cluster).getNodeWVM();
-			WVMName = ((WorkletClusterImpl)getCluster()).getNodeWVMid();
-		}
-		else {
-			// handle this case better !!!
-			myWVM = null;
-			WVMName = null;
-		}
 
 		// now do whatever initial setting of (fixed) subscription is necessary
 
@@ -188,7 +199,7 @@ public class WorkletPlugIn
 		System.out.println ("Faking request of a junction for predicate: " + pred.getClass().getName());
 		return;
 	}
-
+	
 
 	// implementation of WklInstallInf
         /**

@@ -8,9 +8,21 @@
 
 import java.util.*;
 import java.net.UnknownHostException;
+import java.io.IOException;
+import java.sql.SQLException;
+import javax.naming.NamingException;
+
 import org.cougaar.core.society.*;
 import org.cougaar.core.cluster.*;
+import org.cougaar.core.agent.*;
 import org.cougaar.core.plugin.*;
+import org.cougaar.core.mts.*;
+import org.cougaar.core.component.*;
+import org.cougaar.util.PropertyParser;
+import org.cougaar.util.EmptyIterator;
+import org.cougaar.util.FilteredIterator;
+import org.cougaar.util.UnaryPredicate;
+
 import psl.worklets.WVM;
 import psl.workflakes.coolets.adaptors.NodeWklInf;
 
@@ -32,255 +44,204 @@ public class WorkletNode
 	implements NodeWklInf {
 
 	private WVM nodeWVM;
-	private String WVMid;
-	private transient MessageTransport theMessenger = null;
+	private String WVMid;	
 
-/*	static {
-    	Communications.putTransport("Wkl", "psl.workflakes.coolets.WorkletMessageTransport");
-    }
-*/
-
-        /**
-         * Constructor that overrides the <code>Node</code> constructor.
-         * @param someArgs Node arg table
-         * @param port port used for RMI communication
-         * @throws UnknownHostException
-         */
-	public WorkletNode(ArgTable someArgs, Integer port)
-		throws UnknownHostException {
-	    	super(someArgs, port );
-	    	System.out.println (getClass().getName() + " constructor");
-    	}
-
-        /**
-         * Constructor that overrides the <code>Node</code> constructor.
-         * @param someArgs Node arg table
-         * @throws UnknownHostException
-         */
-	public WorkletNode(ArgTable someArgs)
-		throws UnknownHostException {
-    	super( someArgs );
+	public WorkletNode() {
+    	super();
     	System.out.println (getClass().getName() + " constructor");
   }
-
-        /**
-         * Accessor method to get a handle on the WVM of this node
-         * @return handle to the WVM
-         */
+  
+  
+   /**
+     * Accessor method to get a handle on the WVM of this node
+     * @return handle to the WVM
+     */
 	public WVM getNodeWVM() { return nodeWVM; }
-
-        /**
-         * Overrides the <code>initNode()</code> method of class Node. Initializes the Node including the set up of the WVM
-         * @throws UnknownHostException
-         */
-	protected void initNode ()
-		throws UnknownHostException {
-
-		String name = null;
-
-		//this code is ripped off the initNode of parent class org.cougaar.core.society.Node
-    	if(getArgs().containsKey(NAME_KEY)) {
-      		name = (String)getArgs().get( NAME_KEY );
-    	} else {
-      		name = System.getProperty("org.cougaar.node.name");
-    	}
-    	if (name == null) name = findHostName();
-
-    	setIdentifier(name);
-    	// end of code ripped off from Node
-
-
-    	// set up the Node WVM for Worklet Functionality
-    	// influences RMITransport setup for Cougaar
-    	System.out.println (getClass().getName() + " creating WVM now ..");
-    	int port = Communications.getPort();
-    	String addr = Communications.getFdsAddress();
-    	WVMid = getIdentifier() + "_WVM";
-    	nodeWVM = new WVM (this, addr, WVMid, port);
-
-		// start up matching Name Service
-		WorkletMessageTransport.startNameService();
-
-   		// more ripped off code from parent class
-   		createProfiler();
-    	this.initTransport();        // set up the message handler - customized fror WorkletNode
-    	loadClusters();         // set up the clusters.
-    	// end of code ripped off from parent class
+	
+	protected void initNode () 
+	 throws UnknownHostException, NamingException, IOException,
+           SQLException, InitializerServiceException {
+		System.out.println ("In" + getClass().getName() + "::initNode()");
+		
+		//establishing the service that provides info about WVM, the WorkletCluster set
+		// and the WorkletPlugIn set
+		establishRegService();
+		
+		super.initNode();	
 	}
 
-	private void initTransport() {
-		System.out.println ("In WorkletNode.initTransport");
-		String name = getIdentifier();
-
-		theMessenger = new WorkletMessageTransport(name);
-
-	    Communications.setDefaultMessageTransport(theMessenger);
-    	theMessenger.setDisableRetransmission(theMessenger.isDisableRetransmission());
-    	theMessenger.start();
-    	System.err.println("Started "+theMessenger);
-	}
-
-        /**
-         * Accessor method to get a handle of to the node <code>MessageTransport</code>
-         * @return handle to <code>MessageTransport</code> for this Node
-         */
-	protected MessageTransport getMessenger() {
-		return theMessenger;
-	}
-
-        /**
-         * Sets up a cluster for this node. If the cluster to be set up is an instance of
-         * @link{WorkletClusterImpl WorkletClusterImpl} sets the WVM of the node as the WVM of that cluster as well.
-         * @param clusterid the ID of the cluaster to be set up
-         * @return handle to the Cluster service in the Node
-         */
-	public ClusterServesClusterManagement createCluster(String clusterid) {
-		ClusterServesClusterManagement cluster = super.createCluster(clusterid);
-		if (cluster != null && (cluster instanceof psl.workflakes.coolets.WorkletClusterImpl)) {
-			((WorkletClusterImpl)cluster).setNodeWVM(nodeWVM);
-			((WorkletClusterImpl)cluster).setNodeWVMid(WVMid);
-		}
-		return cluster;
-	}
-
-        /**
-         * Ripped off from the Node class. changed to fit WorkletNode
-         * @param args arguments array passed to the Node
-         */
- 	static public void launch(String[] args) {
-
-    //printVersion();
-
-    // BEGIN BBN Debugging
-    // quickly walk through the args and process any
-    // that match -D
-    Properties debugProperties = new Properties();
-    Vector revisedArgs = new Vector(); // elements of args not related to -D values
-    for ( int i=0; i<args.length; i+=1 ){
-      if (args[i].startsWith("-D")) {
-        debugProperties.put(args[i].substring(2), Boolean.TRUE);
-      } else {
-        // process a non -D argument
-        revisedArgs.addElement(args[i]);
-      }
-    }
-
-    // now, swap in the revised Argument listing
-    String[] replacementArgs = new String[revisedArgs.size()];
-    for ( int i=0; i<revisedArgs.size(); i+=1 )
-      replacementArgs[i]=(String)revisedArgs.elementAt(i);
-    args = replacementArgs;
-
-    WorkletNode myNode = null;
-    ArgTable myArgs = new ArgTable(args);
-
-/*
-    // <START_PLUGIN_JAR_VALIDATION>
-    String validateJars = (String)myArgs.get(SIGNED_PLUGIN_JARS);
-    if( validateJars != null) {
-      {
-        boolean isValid = validatePluginJarsByStream();
-        if( isValid == false ) {
-          throw new RuntimeException("Error!  Found unsigned jars in plugin directory!");
-        }
-      }
-    }
-    // </START_PLUGIN_JAR_VALIDATION>
-*/
-    String nodeName = (String) myArgs.get(NAME_KEY) ;
-    java.util.Properties props = System.getProperties();
-
-    String config = (String) myArgs.get(CONFIG_KEY);
-    if (config != null) {
-      props.put("org.cougaar.config", config);
-      System.err.println("Set config to "+config);
-    }
-
-    String cs = (String) myArgs.get(CS_KEY);
-    if (cs != null && cs.length()>0) {
-      props.put("org.cougaar.config.server", cs);
-      System.err.println("Using ConfigurationServer at "+cs);
-    }
-
-    String ns = (String) myArgs.get(NS_KEY);
-    if (ns != null && ns.length()>0) {
-      props.put("org.cougaar.name.server", ns);
-      System.err.println("Using NameServer at "+ns);
-    }
-
-    String port = (String) myArgs.get(PORT_KEY);
-    if (port != null && port.length()>0) {
-      props.put("org.cougaar.name.server.port", port);
-      System.err.println("Using NameServer on port " + port);
-    }
-
-    // try block to ensure we catch all exceptions and exit gracefully
-    try{
-      myNode = new WorkletNode(myArgs);
-      myNode.initNode();
-      // done with our job... quietly finish.
-    }
-    catch(Exception e){
-      System.out.println("Caught an exception at the highest try block.  Exception is: " + e );
-      e.printStackTrace();
-    }
-  }
+	 protected void add(ComponentDescription[] descs) {
+		//first of all set up WVM so that WorkletClusters and their Plugins can refer to it	
+	 	createWVM();
+	 	// now use the canonical Node.add() method to load clusters and (recursively) plugins
+	 	super.add(descs);
+	 }
 
   /**
    * main to launch a WorkletNode from the command line.
    * @param args command line arguments
    */
+
   static public void main(String[] args){
   	System.out.println ("Launching a WorkletNode...");
-    if ("true".equals(System.getProperty("org.cougaar.useBootstrapper", "true"))) {
+   	if ("true".equals(System.getProperty("org.cougaar.useBootstrapper", "true"))) {
       Bootstrapper.launch(Node.class.getName(), args);
     } else {
       WorkletNode.launch(args);
     }
   }
 
+    /**
+     * Ripped off from the Node class. Then changed to fit WorkletNode.
+     * @param args arguments array passed to the Node
+     */
+	static public void launch(String[] args) {
+		// display the version info
+	    //printVersion();
+	
+	    // convert any command-line args to System Properties
+	    WorkflakesArgTable myArgTable = new WorkflakesArgTable(WorkflakesArgTable.parseArgs(args));
+	    myArgTable.setSystemProperties();
+	
+	    // check for valid plugin jars
 
-	// implementation of NodeWklInf
+	    boolean validateJars = PropertyParser.getBoolean("org.cougaar.validate.jars", false);
+	    if (validateJars) {
+	      // validate
+	      if (validatePluginJarsByStream()) {
+	        // validation succeeded
+	      } else {
+	        throw new RuntimeException(
+	          "Error!  Found unsigned jars in plugin directory!");
+	      }
+	    } else {
+	      // not validating
+	    }
+	
+	    // try block to ensure we catch all exceptions and exit gracefully
+        try {
+	      WorkletNode myNode = new WorkletNode();
+	      myNode.initNode();
+	      // done with our job... quietly finish.
+	    } catch (Throwable e) {
+	      System.out.println(
+	          "Caught an exception at the highest try block.  Exception is: " +
+	          e );
+	      e.printStackTrace();
+	    }
+		
+	}
 
-        /**
-         * finds a cluster handle given an ID
-         * @param cluster Cluster ID
-         * @return handle to a Cluster with that ID
-         */
+	private Iterator getClusters() {
+		ServiceBroker sb = getServiceBroker();
+		
+		WVMRegService wklreg = (WVMRegService) sb.getService(this, 
+			WVMRegService.class, null);
+		Iterator iter = wklreg.getClusterListings().iterator();
+		sb.releaseService(this, WVMRegService.class, wklreg);
+		
+		return iter;	
+	}
+	
+	private void establishRegService() {
+		ServiceBroker sb = getServiceBroker();
+		WklRegServiceProvider wklService = new WklRegServiceProvider(null, null);
+		sb.addService(WklClusterRegService.class, wklService);
+		sb.addService(WklPlugInRegService.class, wklService);
+		sb.addService(WVMRegService.class, wklService);	
+	}
+
+	private void createWVM() {
+		System.out.println (getClass().getName() + " creating WVM now ..");
+		int port = Communications.getPort();
+		String addr = Communications.getFdsAddress();
+		WVMid = getIdentifier() + "_WVM";
+		nodeWVM = new WVM (this, addr, WVMid, port);
+		
+		if (!getServiceBroker().hasService(WVMRegService.class))
+			establishRegService();
+					
+		registerWVM();
+		return;		
+	}
+	
+	private void registerWVM() {
+		ServiceBroker sb = getServiceBroker();
+		WVMRegService wklreg = (WVMRegService) sb.getService(this, 
+			WVMRegService.class, null);
+		wklreg.setWVM (nodeWVM);
+		wklreg.setWVMName(WVMid);
+		sb.releaseService(this, WVMRegService.class, wklreg);	
+	}
+	
+	/**
+	 * dummy method that always returns OK, since 	
+	 * we cannot use Node.validatePluginJarsByStream() that is private.
+	 */
+	private static boolean validatePluginJarsByStream() {
+		return true;	
+	}	
+
+  	// implementation of interface NodeWklInf
+
+    /**
+     * finds a cluster handle given an ID
+     * @param cluster Cluster ID
+     * @return handle to a Cluster with that ID
+     */
+
 	public ClusterImpl findCluster (String cluster) {
-		Enumeration clusterEnum = getClusters().elements();
+		Iterator clusterIter = getClusters();
 		ClusterImpl cl = null;
-		while (clusterEnum.hasMoreElements()) {
-			cl = (ClusterImpl)clusterEnum.nextElement();
-			if (cl.getClusterIdentifier().toString().equals(cluster))
+		while (clusterIter.hasNext()) {
+			cl = (ClusterImpl)clusterIter.next();
+			if (cl.getIdentifier().equals(cluster)) {
+				System.out.println ("found cluster " + cl.getIdentifier());
 				return cl;
+			}
 		}
 		return null;
 	}
 
-        /**
-         * finds a PlugIn on a cluster given the cluster and a PlugIn ID
-         * @param clImpl cluster object
-         * @param plugin PlugIn ID
-         * @return handle to the corresponding PlugIn
-         */
+/* Alternative way to get to a CLuster starting form its name ... hackier but simpler
+	public ClusterImpl findCluster (String cluster) {
+		ClusterContext c = ClusterContextTable.findContext(ClusterIdentifier.getClusterIdentifier(cluster));	
+		if (c == null)
+			return null;
+		if (c instanceof ClusterImpl) {
+			System.out.println ("found cluster " + ((ClusterImpl)c).getIdentifier());
+			return ((ClusterImpl)c);
+		}
+		return null;
+	}
+*/
+    /**
+     * finds a PlugIn on a cluster given the cluster and a PlugIn ID
+     * @param clImpl cluster object
+     * @param plugin PlugIn ID
+     * @return handle to the corresponding PlugIn
+     */
 	public PlugInAdapter findPlugIn (ClusterImpl clImpl, String plugin) {
-		List plugins = clImpl.getPlugins();
-		Iterator iter = plugins.iterator();
-		while (iter.hasNext()) {
-			PlugInAdapter pia = (PlugInAdapter) iter.next();
-			if (pia.toString().equals(plugin))
-				return pia;
+		if (clImpl instanceof WorkletClusterImpl) {
+			Iterator iter = ((WorkletClusterImpl)clImpl).getPlugIns();
+			if (!iter.hasNext())
+				System.out.println ("NO PLUGINS FOUND!!!");
+			while (iter.hasNext()) {
+				PlugInAdapter pia = (PlugInAdapter) iter.next();
+				if (pia.toString().equals(plugin))
+					return pia;
+			}
 		}
+
 		return null;
 	}
 
-        /**
-         * finds a PlugIn on a cluster given the cluster ID and a PlugIn ID
-         * @param cluster Cluster ID
-         * @param plugin PlugIn ID
-         * @return handle to the corresponding PlugIn
-         */
+    /**
+     * finds a PlugIn on a cluster given the cluster ID and a PlugIn ID
+     * @param cluster Cluster ID
+     * @param plugin PlugIn ID
+     * @return handle to the corresponding PlugIn
+     */
 	public PlugInAdapter findPlugIn (String cluster, String plugin) {
 		ClusterImpl ci = findCluster (cluster);
 		if (cluster != null)
@@ -288,3 +249,4 @@ public class WorkletNode
 		return null;
 	}
 }
+	

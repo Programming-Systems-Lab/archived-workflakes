@@ -5,8 +5,16 @@
  * </copyright>
  */
  package psl.workflakes.coolets;
+ 
+import java.util.Iterator;
 
 import org.cougaar.core.cluster.*;
+import org.cougaar.core.component.ServiceBroker;
+import org.cougaar.core.plugin.PlugInAdapter;
+import org.cougaar.util.EmptyIterator;
+import org.cougaar.util.StateModelException;
+import org.cougaar.util.UnaryPredicate;
+
 import psl.worklets.WVM;
 
 /**
@@ -27,6 +35,39 @@ public class WorkletClusterImpl
 	private String WVMid;
 	private SienaLDMPlugIn sienaGateway;
 
+	 public void load() 
+	 	throws StateModelException {
+	 	System.out.println ("Loading " + getClass().getName() + 
+	 		" named " + getClusterIdentifier().toString());
+	 	System.out.println (getBindingSite().getClass().getName());
+	 	super.load();
+	 	ServiceBroker sb = getServiceBroker();
+	 	WklClusterRegService wklreg = (WklClusterRegService) sb.getService(this, WklClusterRegService.class, null);
+	 	wklreg.registerCluster(this);
+	 	setNodeWVMid(wklreg.getWVMName());
+	 	setNodeWVM(wklreg.getWVM());
+	 	sb.releaseService(this, WklClusterRegService.class, wklreg);			
+	 }
+	 
+	 public void unload()
+	 	throws StateModelException {
+	 	System.out.println ("Unloading a " + getClass().getName() + 
+	 		" named " + getClusterIdentifier().toString());
+	 	ServiceBroker sb = getServiceBroker();
+	 	WklClusterRegService wklreg = (WklClusterRegService) sb.getService(this, WklClusterRegService.class, null);
+	 	wklreg.unRegisterCluster(this.getClusterIdentifier());
+	 	sb.releaseService(this, WklClusterRegService.class, wklreg);
+	 	super.unload();
+	 }
+	 
+	 public Iterator getPlugIns() {
+	 	ServiceBroker sb = getServiceBroker();
+	 	WklClusterRegService wklreg = (WklClusterRegService) sb.getService(this, WklClusterRegService.class, null);
+	 	Iterator plugins = wklreg.getPlugInListings(this.getClusterIdentifier()).iterator();
+	 	sb.releaseService(this, WklClusterRegService.class, wklreg);
+	 	return plugins;
+	 }
+	
         /**
          * Accessor method for getting the WVM RMI ID of the <code>WorkletNode</code> hosting this cluster.
          * @return the WVM RMI ID
