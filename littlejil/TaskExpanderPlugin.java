@@ -36,8 +36,6 @@ public class TaskExpanderPlugin extends ComponentPlugin {
     }
 
     private static class ExpansionsPredicate implements UnaryPredicate {
-        private final Logger logger = Logger.getLogger(ExpansionsPredicate.class);
-
         public boolean execute(Object o) {
             return (o instanceof Expansion);
         }

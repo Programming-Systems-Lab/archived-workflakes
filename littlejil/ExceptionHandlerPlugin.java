@@ -131,6 +131,9 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     // remove the current expansion
                     Expansion originalExpansion = (Expansion) task.getPlanElement();
                     // construct a ContinueRequest object to "send" to the LittleJILExpander
+
+                    // TODO: use a different Request for TRY
+
                     ContinueRequest request = new ContinueRequest(step, task);
                     for (Enumeration e = originalExpansion.getWorkflow().getTasks();e.hasMoreElements();) {
                         // add steps that have not been completed

@@ -245,9 +245,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             workflow.addTask(subtask);
             subtask.setWorkflow(workflow);
 
-            lastTask = subtask;
-
             if (step.getStepKind() == Step.TRY) {
+                lastTask = subtask;
                 break;  // don't add any more tasks for now!
             }
             // if the parent step is sequential, set this task so it starts after the previous ends
@@ -267,6 +266,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             }
 
+            lastTask = subtask;
             // TODO: choice and try (in progress)
 
         }
