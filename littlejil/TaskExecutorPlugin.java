@@ -19,8 +19,8 @@ import psl.worklets.Worklet;
 /**
  * This plugin simulates executing a task.
  * Currently it can use either a thread that waits, or a worklet that goes to a TaskMonitor instance.
- * The following properties should be set:
- *     psl.workflakes.littlejil.useWorklets: true iff worklets should be used
+ * The following system properties should be set:
+ *     psl.workflakes.littlejil.useWorklets: true if worklets should be used
  *     psl.workflakes.littlejil.WVMHostname: if using worklets, the hostname to bind to
  *     psl.workflakes.littlejil.MonitorWVMHostname: if using worklets, the monitor's hostname
  *
@@ -37,7 +37,7 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
     private static BlackboardService blackboard;
 
-    private static Hashtable allocationsTable;   // used to keep track of allocations for tasks being sent to the TaskMonitor
+    private static Hashtable allocationTable;   // used to keep track of allocations for tasks being sent to the TaskMonitor
 
     private static final int WVM_PORT = 9101;
     private static final String RMINAME = "TaskExecutorPluginWVM";
@@ -67,8 +67,8 @@ public class TaskExecutorPlugin extends ComponentPlugin {
             wvm = new WVM(new WorkletListener(), wvmHostname, RMINAME);
         }
 
-        if (allocationsTable == null) {
-            allocationsTable = new Hashtable();
+        if (allocationTable == null) {
+            allocationTable = new Hashtable();
         }
 
 
@@ -90,6 +90,7 @@ public class TaskExecutorPlugin extends ComponentPlugin {
         }
     }
 
+
     public void setupSubscriptions() {
 
         blackboard = getBlackboardService();
@@ -105,14 +106,17 @@ public class TaskExecutorPlugin extends ComponentPlugin {
         for (Enumeration allocations = allocationsSubscription.getAddedList(); allocations.hasMoreElements();) {
 
             Allocation allocation = (Allocation) allocations.nextElement();
-            allocationsTable.put(allocation.getUID().toString(), allocation);
 
-            if (allocation.getTask().getVerb() == LittleJILExpanderPlugin.DUMMY_TASK) {
-                // this is a "dummy" task (used for COMPLETE handlers), just set it as success
-                // (was using processAllocation directly, but that method assumes we are not in a bb transaction)
+            allocation.getAsset();
+
+            allocationTable.put(allocation.getUID().toString(), allocation);
+
+            if (!useWorklets || allocation.getTask().getVerb() == LittleJILExpanderPlugin.DUMMY_TASK) {
+                // if this is a "dummy" task (used for COMPLETE handlers), just set it as success
+
                 (new ExecutionThread(allocation)).start();
             }
-            else if (useWorklets) {
+            else {
                 // create a worklet junction that will "perform this task"
                 ReturnJunction returnJunction = new ReturnJunction(allocation.getUID().toString(),wvmHostname, RMINAME, WVM_PORT);
                 Worklet worklet = new Worklet(returnJunction);
@@ -124,9 +128,6 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
                 worklet.deployWorklet(wvm);
             }
-            else {
-                (new ExecutionThread(allocation)).start();
-            }
 
         }
 
@@ -134,7 +135,7 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
     protected static void taskComplete(String allocationID, boolean success) {
 
-        Allocation allocation = (Allocation) allocationsTable.get(allocationID);
+        Allocation allocation = (Allocation) allocationTable.get(allocationID);
         if (allocation == null) {
             logger.warn("got taskComplete with unknown allocation id " + allocationID);
             return;
