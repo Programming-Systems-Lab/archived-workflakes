@@ -1,6 +1,8 @@
 package psl.workflakes.littlejil;
 
 import java.util.Enumeration;
+import java.util.Collection;
+import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
@@ -10,6 +12,8 @@ import org.cougaar.core.service.DomainService;
 import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
 import laser.littlejil.Step;
+import laser.littlejil.ParameterBinding;
+import laser.littlejil.ParameterDeclaration;
 
 /**
  * This class gets tasks posted on a blackboard and expand their workflows as necessary
@@ -81,6 +85,31 @@ public class TaskExpanderPlugin extends ComponentPlugin {
             if (expansion.getEstimatedResult() != null) {
                 logger.info(">>>> parent task " + expansion.getTask().getVerb() + " done <<<<");
 
+                // copy out any out parameters of this task
+                LittleJILStepsTable.Entry entry = stepsTable.getEntry(expansion.getTask());
+                if (entry != null) {
+                    Collection paramBindings = entry.getParameterBindings();
+
+                    for (Iterator i = paramBindings.iterator(); i.hasNext();) {
+                        ParameterBinding binding = (ParameterBinding) i.next();
+                        ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
+                        ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
+
+                        if (childDeclaration.getMode() == ParameterDeclaration.COPY_OUT ||
+                                childDeclaration.getMode() == ParameterDeclaration.COPY_IN_AND_OUT) {
+
+                            if (childDeclaration.getParameterValue() == null) {
+                                logger.warn("value is null for out param " + childDeclaration.getName());
+                            } else {
+                                logger.info("copying out param " + childDeclaration.getName() + ", value=" +
+                                        childDeclaration.getParameterValue());
+                                parentDeclaration.setParameterValue(childDeclaration.getParameterValue());
+                            }
+
+                        }
+                    }
+                }
+
                 // NOTE: should we remove the used expansions here? - could make things more efficient,
                 // but would lose history? (would also require implementing PrivilegedClaimant)
                 //blackboard.publishRemove(expansion);
@@ -97,6 +126,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
             processExpansion(expansion);
 
+            // check for pending constraints
             Constraint constraint;
             while ((constraint = workflow.getNextPendingConstraint()) != null) {
                 logger.debug("found a pending constraint: " + PluginUtil.constraintToString(constraint));
@@ -125,6 +155,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                     }
                     else {
                         logger.info("publishing task " + constrainedTask.getVerb());
+                        setInParams(constrainedTask);
                         blackboard.publishAdd(constrainedTask);
 
                         PlanElement planElement = constrainedTask.getPlanElement();
@@ -142,6 +173,10 @@ public class TaskExpanderPlugin extends ComponentPlugin {
     }
 
 
+    /**
+     * Looks for tasks in the expansion that are not constrainted, and publishes them
+     * @param expansion
+     */
     private void processExpansion(Expansion expansion) {
         // first check that the parent task for this expansion can be executed
         Task parentTask = expansion.getTask();
@@ -187,7 +222,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                 if (!constrained) {
 
-                    // if this is a task is a CHOICE task, choose one of the substeps and ask the
+                    // if this a task is a CHOICE task, choose one of the substeps and ask the
                     // LittleJILExpanderPlugin to expand it
                     if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
 
@@ -199,11 +234,45 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                     }
                     else {
                         logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
+
+                        setInParams(task);
                         blackboard.publishAdd(task);
                     }
                 }
 
 
+            }
+        }
+    }
+
+    /**
+     * Gets this tasks's LittleJIL parameter bindings and sets the ones that are COPY_IN
+     * to the value of the parent task's parameter
+     * @param task
+     */
+    private void setInParams(Task task) {
+        LittleJILStepsTable.Entry entry = stepsTable.getEntry(task);
+        assert(entry != null);
+        Collection paramBindings = entry.getParameterBindings();
+
+        for (Iterator i = paramBindings.iterator(); i.hasNext();) {
+            ParameterBinding binding = (ParameterBinding) i.next();
+            if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
+                binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
+
+                ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
+                ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
+
+                assert(parentDeclaration.getParameterValue() != null);
+
+                if (parentDeclaration.getParameterValue() == childDeclaration.getParameterValue()) {
+                    logger.warn("values already equal");
+                }
+
+                childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
+
+                logger.debug("in param " + childDeclaration.getName() +
+                        " set to " + childDeclaration.getParameterValue());
             }
         }
     }
