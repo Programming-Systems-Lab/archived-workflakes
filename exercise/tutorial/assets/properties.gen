@@ -1,0 +1,10 @@
+properties.gen
+SkillsPG.java
+NewSkillsPG.java
+SkillsPGImpl.java
+LanguagePG.java
+NewLanguagePG.java
+LanguagePGImpl.java
+PropertyGroupFactory.java
+AssetSkeleton.java
+Properties.index
