@@ -88,6 +88,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             stepsTable = (LittleJILStepsTable) littleJILStepsTableSubscription.first();
         }
 
+        // process any diagrams found
         for (Enumeration e = diagramSubscription.getAddedList(); e.hasMoreElements();) {
 
             Diagram diagram = (Diagram) e.nextElement();
@@ -95,10 +96,29 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             logger.debug("creating tasks...");
 
-            makeTask(diagram.getRootStep());
+            // make a "Root" task under which the diagram's root task will go.
+            // the reason to do this is that if the diagram's root task has a restart handler,
+            // we need to be able to add the restart handler task *before* the diagram's root task,
+            // and for that we need the diagram's root task to belong to a Cougaar Workflow
+
+            NewTask rootTask = factory.newTask();
+            rootTask.setVerb(new Verb("ROOT"));
+
+            NewTask task = (NewTask) makeTask(diagram.getRootStep());
+
+            NewWorkflow workflow = factory.newWorkflow();
+            workflow.setParentTask(rootTask);
+            workflow.addTask(task);
+            task.setParentTask(rootTask);
+            task.setWorkflow(workflow);
+
+            blackboard.publishAdd(rootTask);
+            blackboard.publishAdd(factory.createExpansion(rootTask.getPlan(), rootTask, workflow, null));
 
         }
 
+        // process any steps that need to be re-posted
+        // (as of now, used only in RESTART exception handlers)
         for (Enumeration e = stepSubscription.getAddedList(); e.hasMoreElements();) {
 
             Step step = (Step) e.nextElement();
@@ -145,7 +165,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      *        without going into an infinite loop
      * @param task if this is a step that is being restarted, an existing task can be given so that
      *        the new workflow is set to that task and a new one is not created
-     * @return a Cougaar Task, with an associated workflow (if necessary)
+     * @return a Cougaar Task. If the task has subtasks, the task and its expansion are published
      */
     private Task makeTask(Step step, Task task, boolean checkRequisites) {
 
@@ -191,6 +211,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         Task lastTask = null;
         for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
             Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
+
+            // recursive call to create this task -- this will create the task's subtasks, etc
             NewTask subtask = (NewTask) makeTask(substep);
 
             logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
