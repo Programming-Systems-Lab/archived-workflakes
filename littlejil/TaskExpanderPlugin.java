@@ -160,36 +160,8 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                         logger.debug("task " + constrainedTask.getVerb() + " has more constraints");
                         continue;
                     }
-                    // if this task is a CHOICE task, choose one of the substeps and ask the
-                    // LittleJILExpanderPlugin to expand it
-                    else if (constrainedTask.getAnnotation() != null && constrainedTask.getAnnotation() instanceof ChoiceAnnotation) {
-
-                        logger.debug("task " + constrainedTask.getVerb() + " is a CHOICE task");
-                        Step step = ((ChoiceAnnotation) constrainedTask.getAnnotation()).chooseSubstep();
-
-                        MakeTaskRequest request = new MakeTaskRequest(constrainedTask, step);
-                        blackboard.publishAdd(request);
-                    } else {
-                        logger.info("publishing task " + constrainedTask.getVerb());
-                        setInParams(constrainedTask);
-                        blackboard.publishAdd(constrainedTask);
-
-                        PlanElement planElement = constrainedTask.getPlanElement();
-                        if (planElement != null && planElement instanceof Expansion) {
-                            //logger.debug("publishing tasks's expansion:" + planElement);
-                            blackboard.publishChange(planElement);
-
-                            // notify listeners of task being published
-                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
-                                Listener listener = (Listener) iterator.next();
-                                listener.taskPublished(constrainedTask.getVerb().toString());
-                            }
-                        } else {
-                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
-                                Listener listener = (Listener) iterator.next();
-                                listener.leafTaskPublished(constrainedTask.getVerb().toString());
-                            }
-                        }
+                    else {
+                        publishTask(constrainedTask);
                     }
                 }
             }
@@ -248,42 +220,49 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                 }
 
                 if (!constrained) {
-
-                    // if this a task is a CHOICE task, choose one of the substeps and ask the
-                    // LittleJILExpanderPlugin to expand it
-                    if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
-
-                        logger.debug("task " + task.getVerb() + " is a CHOICE task");
-                        Step step = ((ChoiceAnnotation) task.getAnnotation()).chooseSubstep();
-
-                        MakeTaskRequest request = new MakeTaskRequest(task, step);
-                        blackboard.publishAdd(request);
-                    } else {
-                        logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
-
-                        setInParams(task);
-                        blackboard.publishAdd(task);
-
-                        PlanElement planElement = task.getPlanElement();
-                        if (planElement != null && planElement instanceof Expansion) {
-                            //logger.debug("publishing tasks's expansion:" + planElement);
-                            blackboard.publishChange(planElement);
-
-                            // notify listeners of task being published
-                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
-                                Listener listener = (Listener) iterator.next();
-                                listener.taskPublished(task.getVerb().toString());
-                            }
-                        } else {
-                            for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
-                                Listener listener = (Listener) iterator.next();
-                                listener.leafTaskPublished(task.getVerb().toString());
-                            }
-                        }
-                    }
+                    publishTask(task);
                 }
 
 
+            }
+        }
+    }
+
+    private void publishTask(Task task) {
+
+        // if this a task is a CHOICE task, choose one of the substeps and ask the
+        // LittleJILExpanderPlugin to expand it
+        if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
+
+            logger.debug("task " + task.getVerb() + " is a CHOICE task");
+            Step step = ((ChoiceAnnotation) task.getAnnotation()).chooseSubstep();
+
+            MakeTaskRequest request = new MakeTaskRequest(task, step);
+            blackboard.publishAdd(request);
+
+        } else {
+            logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
+
+            setInParams(task);
+            blackboard.publishAdd(task);
+
+            PlanElement planElement = task.getPlanElement();
+            if (planElement != null && planElement instanceof Expansion) {
+                //logger.debug("publishing tasks's expansion:" + planElement);
+                blackboard.publishChange(planElement);
+
+                // notify listeners of task being published
+                for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
+                    Listener listener = (Listener) iterator.next();
+                    listener.taskPublished(task.getVerb().toString());
+                }
+            } else {
+
+                // notify listeners of task being published
+                for (Iterator iterator = listeners.iterator(); iterator.hasNext();) {
+                    Listener listener = (Listener) iterator.next();
+                    listener.leafTaskPublished(task.getVerb().toString());
+                }
             }
         }
     }

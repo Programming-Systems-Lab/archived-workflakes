@@ -69,7 +69,11 @@ public class TaskExecutorInternalPlugin extends AbstractTaskExecutorPlugin {
                 }
 
                 Hashtable outParams = new Hashtable();
-                executable.execute(task.getVerb().toString(), inParams, outParams);
+
+                String name = task.getVerb().toString();
+                PluginUtil.Timing.addTimestamp("exec " + name);
+                executable.execute(name, inParams, outParams);
+                PluginUtil.Timing.addTimestamp("exec " + name);
 
                 // task executed successfully
                 logger.debug("executable for task " + task.getVerb() + " executed successfully");

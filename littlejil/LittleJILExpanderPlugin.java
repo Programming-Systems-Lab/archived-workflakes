@@ -114,16 +114,16 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             stepsTable = (LittleJILStepsTable) stepsTableSubscription.first();
         }
 
-        //resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
-        //assert(resourceTable != null);
+        resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
+        assert(resourceTable != null);
 
-        // TODO: temporary
+        /*// TODO: temporary
         if (resourceTableSubscription.size() == 0) {
             resourceTable = new LittleJILResourceTable();
             blackboard.publishAdd(resourceTable);
         } else {
             resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
-        }
+        }*/
 
         // process any diagrams found
         for (Enumeration e = diagramSubscription.getAddedList(); e.hasMoreElements();) {
@@ -156,6 +156,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             blackboard.publishAdd(rootTask);
             blackboard.publishAdd(factory.createExpansion(rootTask.getPlan(), rootTask, workflow, null));
+
+            PluginUtil.Timing.addTimestamp("publish rootTask");
 
         }
 
