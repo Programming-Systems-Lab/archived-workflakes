@@ -35,12 +35,10 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     private LittleJILStepsTable stepsTable; // used to keep a mapping of task->step
 
-    private static double endTime = 1.0;
-
-
     // the "end time" for the tasks, which keeps increasing...
-        // TODO: make sure there are no issues with sharing this among different workflows
-        // (intuitively there shouldn't be since later tasks will always have a later end time)
+    // TODO: make sure there are no issues with sharing this among different workflows
+    // (intuitively there shouldn't be since later tasks will always have a later end time)
+    private static double endTime = 1.0;
 
     /**
      * Used by the binding utility through reflection to set my DomainService
@@ -223,33 +221,26 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         NewTask parentTask = factory.newTask();
         parentTask.setVerb(new Verb(step.getName() + "Parent"));
 
-        /*// make tasks for any handlers that this step has, and put them in the steps table
-        // (they will be used in the ExceptionHandlerPlugin)
+        // There is a particular corner case regarding pre-requisistes and expansions.
+        // If a task with pre-requisite has a RESTART expansion handler, then we
+        // need to handler that in the "parent task" that we are creating,
+        // because otherwise when the task is restarted the pre-requisite will not be run
         for (Enumeration handlers = step.handlers();handlers.hasMoreElements();) {
             HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
-            if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
-                Step handlerStep = (Step) handlerBinding.getTarget();
-                if (handlerStep != null) {
-                    stepsTable.put(handlerStep, makeTask(handlerStep));
-                }
+            if (handlerBinding.getControlFlow() == HandlerBinding.RESTART) {
+                stepsTable.put(parentTask, step);
+                break;
             }
         }
 
-        // add this task to the task->steps table
-        stepsTable.put(parentTask, step);*/
-
-
-
-        logger.debug("created parent task " + parentTask.getVerb()/* + " with end_time " + endTime*/);
+        logger.debug("created parent task " + parentTask.getVerb());
 
 
         NewWorkflow workflow = factory.newWorkflow();
 
-        // now create the actual "real" task and add it to this tasks' workflow
+        // create the actual "real" task
         NewTask task = makeTask(step, false);   // the false flag is so that makeTask ignores pre and post-reqs
         task.setParentTask(parentTask);
-        workflow.addTask(task);
-        task.setWorkflow(workflow);
 
         // first add the pre-req task, if any
         if (preReqBinding != null) {
@@ -276,6 +267,10 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             workflow.addConstraint(constraint);
 
         }
+
+        // now add the task to the workflow (we put them in order)
+        workflow.addTask(task);
+        task.setWorkflow(workflow);
 
         if (postReqBinding != null) {
             // have to create a task for this post-req and add a constraint to it goes after
