@@ -9,6 +9,7 @@ import org.cougaar.core.plugin.util.PluginHelper;
 import org.cougaar.core.service.DomainService;
 import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
+import laser.littlejil.Step;
 
 /**
  * This class gets tasks posted on a blackboard and expand their workflows as necessary
@@ -112,14 +113,25 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                         logger.debug("task " + constrainedTask.getVerb() + " has more constraints");
                         continue;
                     }
+                    // if this task is a CHOICE task, choose one of the substeps and ask the
+                    // LittleJILExpanderPlugin to expand it
+                    else if (constrainedTask.getAnnotation() != null && constrainedTask.getAnnotation() instanceof ChoiceAnnotation) {
 
-                    logger.info("publishing task " + constrainedTask.getVerb());
-                    blackboard.publishAdd(constrainedTask);
+                        logger.debug("task " + constrainedTask.getVerb() + " is a CHOICE task");
+                        Step step = ((ChoiceAnnotation)constrainedTask.getAnnotation()).chooseSubstep();
 
-                    PlanElement planElement = constrainedTask.getPlanElement();
-                    if (planElement != null && planElement instanceof Expansion) {
-                        //logger.debug("publishing tasks's expansion:" + planElement);
-                        blackboard.publishChange(planElement);
+                        MakeTaskRequest request = new MakeTaskRequest(constrainedTask, step);
+                        blackboard.publishAdd(request);
+                    }
+                    else {
+                        logger.info("publishing task " + constrainedTask.getVerb());
+                        blackboard.publishAdd(constrainedTask);
+
+                        PlanElement planElement = constrainedTask.getPlanElement();
+                        if (planElement != null && planElement instanceof Expansion) {
+                            //logger.debug("publishing tasks's expansion:" + planElement);
+                            blackboard.publishChange(planElement);
+                        }
                     }
                 }
             }
@@ -175,38 +187,20 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                 if (!constrained) {
 
-                    // if this is a subtask of a CHOICE task, check here if we chose it or not
-                    // NOTE: eventually, we might want to use some actual logic here, instead of random
+                    // if this is a task is a CHOICE task, choose one of the substeps and ask the
+                    // LittleJILExpanderPlugin to expand it
                     if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
 
-                        logger.debug("task " + task.getVerb() + " is part of choice group");
+                        logger.debug("task " + task.getVerb() + " is a CHOICE task");
+                        Step step = ((ChoiceAnnotation)task.getAnnotation()).chooseSubstep();
 
-                        boolean shouldChoose = ((ChoiceAnnotation)task.getAnnotation()).shouldChoose(task);
-
-                        if (!shouldChoose) {
-                            logger.debug("not choosing it");
-
-                            // remove from workflow
-                            ((NewWorkflow)workflow).removeTask(task);
-
-                            continue;
-                        }
-                        else {
-                            logger.debug("choosing it!");
-                            // we choose this one, but then we should remove all other subtasks from
-                            // the workflow
-                            for (Enumeration e = workflow.getTasks(); e.hasMoreElements(); ) {
-                                Task t = (Task) e.nextElement();
-                                if (t != task) {
-                                    ((NewWorkflow)workflow).removeTask(t);
-                                }
-                            }
-                        }
-
+                        MakeTaskRequest request = new MakeTaskRequest(task, step);
+                        blackboard.publishAdd(request);
                     }
-
-                    logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
-                    blackboard.publishAdd(task);
+                    else {
+                        logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
+                        blackboard.publishAdd(task);
+                    }
                 }
 
 

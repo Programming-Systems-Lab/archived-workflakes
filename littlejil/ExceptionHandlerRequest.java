@@ -6,8 +6,8 @@ import org.cougaar.planning.ldm.plan.Task;
 import java.io.Serializable;
 
 /**
- * The superclass for "requests" from the ExceptionHandlerPlugin to the LittleJILExpanderPlugin
- * that are used for continuing, restarting, completing tasks.
+ * This class is used for the ExceptionHandler to send requests to the LittleJILExpanderPlugin asking it
+ * to restart, complete, continue tasks
  * @author matias@cs.columbia.edu
  */
 public class ExceptionHandlerRequest implements Serializable {

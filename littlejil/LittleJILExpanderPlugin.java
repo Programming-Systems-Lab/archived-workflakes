@@ -16,11 +16,10 @@ import org.cougaar.util.UnaryPredicate;
  * This plugin parses a LittleJIL diagram and publishes the root task to be expanded
  * by the ExpanderPlugin.
  *
- * Design change 12/06/02
- *  Peppo and I talked about handling pre and post-reqs. He came up with a better idea than the
- *  current solution: encapsulate a task and its pre- and post-reqs into a parent task. This makes
- *  it simple to process the post and pre-reqs, since we don't have to worry about moving over constraints
- *  and such.
+ * It subscribes to Little-JIL diagrams, and requests from other plugins (like TaskExpander
+ * and ExceptionHandler) when tasks need to be re-posted, etc.
+ *
+ * It also keeps a table that maps between Tasks and Steps in the blackboard.
  *
  * @author matias
  */
@@ -29,9 +28,10 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);
     private IncrementalSubscription diagramSubscription;
-    private IncrementalSubscription handlerRequestSubscription;
+    private IncrementalSubscription postHandlerRequestSubscription;
     private IncrementalSubscription littleJILStepsTableSubscription;
     private IncrementalSubscription exceptionHandlerRequestSubscription;
+    private IncrementalSubscription makeTaskRequestSubscription;
 
     private DomainService domainService;
     private RootFactory factory;
@@ -41,6 +41,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     // the "end time" for new tasks, which keeps increasing...
     private static double endTime = 1.0;
     public static final Verb DUMMY_TASK = new Verb("DUMMY_TASK");
+
 
     /**
      * Used by the binding utility through reflection to set my DomainService
@@ -62,9 +63,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
     }
 
-    private static class HandlerRequestPredicate implements UnaryPredicate {
+    private static class PostHandlerRequestPredicate implements UnaryPredicate {
         public boolean execute(Object o) {
-            return (o instanceof HandlerRequest);
+            return (o instanceof PostHandlerTaskRequest);
         }
     }
 
@@ -74,13 +75,20 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
     }
 
+    private static class MakeTaskRequestPredicate implements UnaryPredicate {
+        public boolean execute(Object o) {
+            return (o instanceof MakeTaskRequest);
+        }
+    }
+
     public void setupSubscriptions() {
 
         // set up the subscription to get diagrams
         diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
         littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
         exceptionHandlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new ExceptionHandlerRequestPredicate());
-        handlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new HandlerRequestPredicate());
+        postHandlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new PostHandlerRequestPredicate());
+        makeTaskRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new MakeTaskRequestPredicate());
 
         logger.info("ready.");
 
@@ -129,9 +137,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         // process any HandlerBindings that may have been posted by the ExceptionHandlerPlugin
         // for each one, we need to create the task for that handler (if any) and post it
         // so it executes before its source task
-        for (Enumeration e = handlerRequestSubscription.getAddedList(); e.hasMoreElements();) {
+        for (Enumeration e = postHandlerRequestSubscription.getAddedList(); e.hasMoreElements();) {
 
-            HandlerRequest request = (HandlerRequest) e.nextElement();
+            PostHandlerTaskRequest request = (PostHandlerTaskRequest) e.nextElement();
             HandlerBinding binding = request.getHandlerBinding();
             Task task = request.getTask();
 
@@ -178,6 +186,28 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         }
 
+
+        for (Enumeration e = makeTaskRequestSubscription.getAddedList(); e.hasMoreElements();) {
+
+            MakeTaskRequest request = (MakeTaskRequest) e.nextElement();
+
+            NewTask subtask = (NewTask) makeTask(request.getStep());
+
+            NewWorkflow workflow = factory.newWorkflow();
+            Task parentTask = request.getParentTask();
+
+            workflow.setParentTask(parentTask);
+            workflow.addTask(subtask);
+
+            subtask.setParentTask(parentTask);
+            subtask.setWorkflow(workflow);
+
+            blackboard.publishAdd(factory.createExpansion(parentTask.getPlan(), parentTask, workflow, null));
+
+            blackboard.publishAdd(parentTask);
+
+            logger.debug("published new workflow for a MakeTaskRequest");
+        }
 
     }
 
@@ -280,16 +310,16 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             if (step.getStepKind() == Step.CHOICE) {
                 choiceAnnotation = new ChoiceAnnotation();
-            }
-            else if (task.getAnnotation() != null && task.getAnnotation() instanceof ChoiceAnnotation) {
-                // the parent has a choice annotation, so make its subtasks have one that links
-                // to the parent. this is because otherwise the subtasks get posted and they don't
-                // "respect" the choice that is made on the parent task
-                choiceAnnotation = new ChoiceAnnotation((ChoiceAnnotation) task.getAnnotation());
+                task.setAnnotation(choiceAnnotation);
             }
 
             for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
                 Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
+
+                if (choiceAnnotation != null) {
+                    choiceAnnotation.addSubstep(substep);
+                    continue;   // we don't create actual tasks at this point
+                }
 
                 if (request != null && !continueFlag) {
                     if (request.getType() == ExceptionHandlerRequest.CONTINUE ||
@@ -303,11 +333,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
                 // recursive call to create this task -- this will create the task's subtasks, etc
                 NewTask subtask = (NewTask) makeTask(substep);
-
-                if (choiceAnnotation != null) {
-                    choiceAnnotation.addTask(subtask);
-                    subtask.setAnnotation(choiceAnnotation);
-                }
 
                 logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + task.getVerb());
                 subtask.setParentTask(task);
