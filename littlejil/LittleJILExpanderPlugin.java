@@ -1,6 +1,7 @@
 package psl.workflakes.littlejil;
 
 import java.util.Enumeration;
+import java.util.Vector;
 
 import laser.littlejil.*;
 import org.apache.log4j.Logger;
@@ -184,56 +185,69 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      */
     private Task makeTask(Step step, ExceptionHandlerRequest request, boolean checkRequisites) {
 
-        if (checkRequisites && (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
-            logger.debug("step " + step.getName() + " has pre- or post-requisites");
-            return makeTaskWithRequisites(step);
-        }
-
         Task task = (request == null ? null : request.getTask());
         if (task == null) {
-            logger.info("creating new task " + step.getName());
+            logger.info("creating new task for step " + step.getName());
+
+            if (checkRequisites && (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
+                logger.debug("step " + step.getName() + " has pre- or post-requisites");
+                return makeTaskWithRequisites(step);
+            }
+
             task = factory.newTask();
             ((NewTask) task).setVerb(new Verb(step.getName()));
 
-            // TODO: should I use different END_TIME prefs? mhmm...
+
+            // make tasks for any handlers that this step has, and put them in the steps table
+            // (they will be used in the ExceptionHandlerPlugin)
+            for (Enumeration handlers = step.handlers(); handlers.hasMoreElements();) {
+                HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
+                if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
+                    Step handlerStep = (Step) handlerBinding.getTarget();
+                    if (handlerStep != null) {
+                        stepsTable.put(handlerStep, makeTask(handlerStep));
+                    }
+                }
+            }
+
             ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
                     (new AspectValue(AspectType.END_TIME, getNextEndTime()));
             Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
             ((NewTask) task).setPreference(pref);
+
+
+            // add this task to the task->steps table
+            stepsTable.put(task, step);
+            stepsTable.put(step, task);
         }
+        else {
+            logger.info("processing Request for task " + task.getVerb());
 
-        // make tasks for any handlers that this step has, and put them in the steps table
-        // (they will be used in the ExceptionHandlerPlugin)
-        for (Enumeration handlers = step.handlers(); handlers.hasMoreElements();) {
-            HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
-            if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
-                Step handlerStep = (Step) handlerBinding.getTarget();
-                if (handlerStep != null) {
-                    stepsTable.put(handlerStep, makeTask(handlerStep));
-                }
-            }
+            // when we are retrying or restarting multiple times, we need to
+            // reset the START_TIME preference for the task, so that handler constraints are handled properly
+           /* Preference pref = task.getPreference(AspectType.END_TIME);
+            Vector v = new Vector();
+            v.add(pref);
+            ((NewTask) task).setPreferences(v.elements());*/
+
         }
-
-        // add this task to the task->steps table
-        stepsTable.put(task, step);
-        stepsTable.put(step, task);
-
-        logger.debug("created task " + task.getVerb());
 
         NewWorkflow workflow = factory.newWorkflow();
 
         // now get subsets of this step and create tasks for those, and put them in the workflow
         // NOTE: tasks are returned in the correct order (according to Little-JIL API docs)
         Task lastTask = null;
+        boolean continueFlag = false;   // (only if request is ContinueRequest) indicates that tasks should be now added
         for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
             Step substep = (Step) ((SubstepBinding) substepsEnum.nextElement()).getTarget();
 
-            if (request != null) {
-                if (request instanceof ContinueRequest) {
-                    if (!((ContinueRequest) request).isIncomplete(substep)) {
-                        logger.debug("skipping adding task " + substep.getName());
-                        continue;   // skip this task, since it's already been completed
+            if (request != null && !continueFlag) {
+                if (request.getType() == ExceptionHandlerRequest.CONTINUE ||
+                    request.getType() == ExceptionHandlerRequest.TRY) {
+                    if (request.getFailedStep() == substep) {
+                        continueFlag = true;    // after this we can start adding tasks again
                     }
+                    continue;
                 }
             }
 
@@ -275,13 +289,22 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             workflow.setParentTask(task);
             NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, workflow, null);
 
-            logger.debug("publishing parent task " + task);
+            //logger.debug("publishing parent task " + task);
             blackboard.publishAdd(task);
 
-            logger.debug("publishing expansion " + expansion);
+            //logger.debug("publishing expansion " + expansion);
             blackboard.publishAdd(expansion);
 
         }
+        // check: if this was a TRY request and we haven't added any tasks, it means there weren't any left
+        // and we should post an exception
+        else if (request != null && request.getType() == ExceptionHandlerRequest.TRY) {
+            logger.info("no more tasks left to try, posting exception");
+            LittleJILException exception = new LittleJILException(task, "NoMoreAlternativesException");
+            blackboard.publishAdd(exception);
+        }
+
+
 
         return task;
     }
