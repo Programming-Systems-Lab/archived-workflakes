@@ -90,7 +90,8 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
             executorPG.setCapabilities("any");
 
             NewClassPG classPG = (NewClassPG) factory.createPropertyGroup("ClassPG");
-            classPG.setClassName("psl.workflakes.littlejil.TaskExecutorInternalPlugin$DummyExecutableTask");
+            //classPG.setClassName("psl.workflakes.littlejil.TaskExecutorInternalPlugin$DummyExecutableTask");
+            classPG.setClassName("psl.ai2tv.workflow.AI2TVPlugin$DummyExecutableTask");
             asset.setExecutorPG(executorPG);
             asset.setClassPG(classPG);
 

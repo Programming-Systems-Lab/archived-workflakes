@@ -1,9 +1,6 @@
 package psl.workflakes.littlejil;
 
-import java.util.Enumeration;
-import java.util.Vector;
-import java.util.Collections;
-import java.util.Arrays;
+import java.util.*;
 
 import laser.littlejil.*;
 import org.apache.log4j.Logger;
@@ -31,7 +28,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);
     private IncrementalSubscription diagramSubscription;
     private IncrementalSubscription postHandlerRequestSubscription;
-    private IncrementalSubscription littleJILStepsTableSubscription;
+    private IncrementalSubscription stepsTableSubscription;
+    private IncrementalSubscription resourceTableSubscription;
     private IncrementalSubscription exceptionHandlerRequestSubscription;
     private IncrementalSubscription makeTaskRequestSubscription;
 
@@ -39,10 +37,12 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     private RootFactory factory;
 
     private LittleJILStepsTable stepsTable; // used to keep a mapping of task->step
+    private LittleJILResourceTable resourceTable;
 
     // the "end time" for new tasks, which keeps increasing...
     private static double endTime = 1.0;
     public static final Verb DUMMY_TASK = new Verb("DUMMY_TASK");
+
 
 
     /**
@@ -59,11 +59,17 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
     }
 
-    private static class LittleJILStepsTablePredicate implements UnaryPredicate {
+    private static class StepsTablePredicate implements UnaryPredicate {
         public boolean execute(Object o) {
             return (o instanceof LittleJILStepsTable);
         }
     }
+
+    private static class ResourceTablePredicate implements UnaryPredicate {
+           public boolean execute(Object o) {
+               return (o instanceof LittleJILResourceTable);
+           }
+       }
 
     private static class PostHandlerRequestPredicate implements UnaryPredicate {
         public boolean execute(Object o) {
@@ -87,7 +93,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         // set up the subscription to get diagrams
         diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
-        littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
+        stepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new StepsTablePredicate());
+        resourceTableSubscription = (IncrementalSubscription) blackboard.subscribe(new ResourceTablePredicate());
         exceptionHandlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new ExceptionHandlerRequestPredicate());
         postHandlerRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new PostHandlerRequestPredicate());
         makeTaskRequestSubscription = (IncrementalSubscription) blackboard.subscribe(new MakeTaskRequestPredicate());
@@ -100,11 +107,22 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         // if there isn't a steps table in the blackboard yet, create one. otherwise, we will
         // use the one that is there.
-        if (littleJILStepsTableSubscription.size() == 0) {
+        if (stepsTableSubscription.size() == 0) {
             stepsTable = new LittleJILStepsTable();
             blackboard.publishAdd(stepsTable);
         } else {
-            stepsTable = (LittleJILStepsTable) littleJILStepsTableSubscription.first();
+            stepsTable = (LittleJILStepsTable) stepsTableSubscription.first();
+        }
+
+        //resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
+        //assert(resourceTable != null);
+
+        // TODO: temporary
+        if (resourceTableSubscription.size() == 0) {
+            resourceTable = new LittleJILResourceTable();
+            blackboard.publishAdd(resourceTable);
+        } else {
+            resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
         }
 
         // process any diagrams found
@@ -339,14 +357,57 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                 }
 
                 int count = 1;
+                Collection collection = null;   // used only if the cardinality has a resource parameter
+                Iterator iterator = null;       // ditto
+
                 Cardinality cardinality = substepBinding.getCardinality();
+                ParameterDeclaration cardinalityParam = null;
                 if (cardinality != null) {
                     count = cardinality.getUpperBound();
+
+                    // check if cardinality is bound to a resource
+                    cardinalityParam = cardinality.getParameter();
+                    if (cardinalityParam != null) {
+                        // get resource -- TODO: for now, it MUST to be a Collection
+                        Object o = resourceTable.getResource(step.getDiagram(), cardinalityParam.getName());
+                        if (o == null) {
+                            logger.warn("Cardinality resource " + cardinalityParam.getName() + " not found!");
+                        }
+                        else if (!(o instanceof Collection)) {
+                            logger.warn("Cardinality resource " + cardinalityParam.getName() + " found, but not a Collection");
+                        }
+                        else {
+                            collection = (Collection) o;
+                            iterator = collection.iterator();
+                        }
+                    }
                 }
 
-                for (int i=0;i<count;i++) {
+                if (collection != null) {
+                    // loop for the smallest of count or the size of the resource collection
+                    count = (count < collection.size() ? count : collection.size());
+                }
+
+                for (int i=0;i<count ;i++) {
 
                     NewTask subtask = makeSubTask(substep, substepBinding, task, workflow);
+
+                    // if we are iterating through a collection, set the resource to be an iterator for this collection
+                    // that way, the AbstractTaskExecutorPlugin can get the next element from the iterator when the
+                    // task is executed. This provides some degree of "late binding", and also gets around the problem
+                    // that all the substasks share the same Step (so they couldn't each have a different resource bound
+                    // to it).
+                    if (iterator != null) {
+                        StepInterface stepInterface = substep.getStepInterface();
+                        assert(stepInterface != null);
+
+                        ParameterDeclaration param = stepInterface.getParameter(cardinalityParam.getName());
+                        assert(param != null);
+
+                        logger.debug("setting resource value for substep " + substep.getName() + " to " + iterator);
+                        param.setParameterValue(iterator);
+                    }
+
 
                     if (step.getStepKind() == Step.TRY) {
                         lastTask = subtask;
@@ -521,9 +582,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         return parentTask;
     }
 
-    private NewTask makeSubTask(Step substep, SubstepBinding substepBinding, Task parentTask, NewWorkflow workflow) {
+    private NewTask makeSubTask(Step step, SubstepBinding substepBinding, Task parentTask, NewWorkflow workflow) {
         // recursive call to create this task -- this will create the task's subtasks, etc
-        NewTask subtask = (NewTask) makeTask(substep);
+        NewTask subtask = (NewTask) makeTask(step);
 
         // set the parameter bindings for this task
         LittleJILStepsTable.Entry entry = stepsTable.getEntry(subtask);

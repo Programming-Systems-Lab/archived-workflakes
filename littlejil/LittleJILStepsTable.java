@@ -13,7 +13,10 @@ import laser.littlejil.Step;
  * This table is used by plugins (eg LittleJILExpanderPlugin and ExceptionHandlerPlugin) to map
  * between tasks and the original LittleJIL steps. This is necessary:
  *   - to lookup HandlerBindings for a task
- *   - to lookup parameterBindings for a task
+ *   - to lookup parameterBindings for a task. Even though parameter declarations are available through
+ * step.getStepInterface().getParameters(), we need to keep the parameterBindings because they have both
+ * the child and parent parameter declarations, which are necessary when we are copying in and copying out
+ * parameters.
  *
  * @author matias
  */
@@ -70,6 +73,11 @@ public class LittleJILStepsTable implements Serializable {
             return step;
         }
 
+        /**
+         * Returns the parameter bindings for this step. This is needed because the parameter bindings
+         * in LittleJIL are associated with a step binding and not the actual step.
+         * @return
+         */
         public Collection getParameterBindings() {
             return parameterBindings;
         }
