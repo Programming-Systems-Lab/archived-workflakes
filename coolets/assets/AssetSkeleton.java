@@ -19,7 +19,7 @@
  * </copyright>
  */
 
-/* @generated Wed Jun 26 00:13:46 CEST 2002 from properties.def - DO NOT HAND EDIT */
+/* @generated Sun Jun 30 00:56:41 CEST 2002 from properties.def - DO NOT HAND EDIT */
 /** Abstract Asset Skeleton implementation
  * Implements default property getters, and additional property
  * lists.

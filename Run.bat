@@ -1,6 +1,7 @@
 @echo OFF
 
-set PSL_HOME=C:\valetto\columbia
+set PSL_HOME=D:\Peppo\Codice
+set WKLLIB=%PSL_HOME%\psl\jars\demo2002\worklets.jar
 set ALP_INSTALL_PATH=%PSL_HOME%\tools\cougaar-8.8
 
 if "%ALP_INSTALL_PATH%"=="" goto AIP_ERROR
@@ -13,7 +14,7 @@ set LIBPATHS=%LIBPATHS%;%PSL_HOME%\jars\xerces.jar
 set LIBPATHS=%LIBPATHS%;%PSL_HOME%\jars\log4j.jar
 set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\sys\jsse.jar
 set LIBPATHS=%LIBPATHS%;%PSL_HOME%\jars\siena-1.1.2.jar
-set LIBPATHS=%LIBPATHS%;%PSL_HOME%
+set LIBPATHS=%LIBPATHS%;%WKLLIB%;%PSL_HOME%
 
 REM pass in "NodeName" to run a specific named Node
 

@@ -6,6 +6,8 @@
  */
  package psl.workflakes.coolets.adaptors;
 
+import java.util.Vector;
+
 import org.cougaar.core.society.UniqueObject;
 import org.cougaar.util.UnaryPredicate;
 import org.cougaar.domain.planning.ldm.asset.Asset;
@@ -26,6 +28,6 @@ import psl.workflakes.coolets.assets.*;
  */
 public interface TaskReturnInf {
 	void failTask (Task t);
-	void postAction (Allocation a, ExecAgentAsset executor);
+	void postAction (Allocation a, ExecAgentAsset executor, Vector retData);
 	UniqueObject findByUID (UnaryPredicate pred);
 }

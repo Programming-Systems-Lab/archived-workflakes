@@ -43,6 +43,9 @@ import psl.workflakes.coolets.adaptors.*;
 public class SienaLDMPlugIn
 	extends WorkletPlugIn
 	implements SienaLDMAdaptorInf {
+		
+		static final private String idPrefix = "SienaGeneratedAsset_";
+		static private int assetNum = 0;
 
         /**
          * URL of the Siena bus used by this PlugIn
@@ -311,7 +314,17 @@ public class SienaLDMPlugIn
          * @param proto prototype defining the structure of the <code>Asset</code>
          * @return an Asset instance
          */
-	public Asset newAsset(String proto) { return theLDMF.createInstance(proto); }
+	public Asset newAsset(String proto) { 
+		Asset a= theLDMF.createInstance(proto); 
+		NewItemIdentificationPG  idPG = (NewItemIdentificationPG)a.getItemIdentificationPG();
+		idPG.setItemIdentification(computeID());
+		a.setItemIdentificationPG(idPG);
+		return a;
+	}
+	
+	private String computeID() { 
+		return (idPrefix + assetNum++);
+	}
 
         /**
          *

@@ -198,7 +198,8 @@ public class AllocatorPlugIn
    * @param a the Allocation describing the association of a WEJ to a given workflow task
    * @param executor the allocated WEJ
    */
-  public void postAction (Allocation a, psl.workflakes.coolets.assets.ExecAgentAsset executor) {
+  public void postAction (Allocation a, psl.workflakes.coolets.assets.ExecAgentAsset executor,
+  							Vector retData) {
     // this must be executed after the worklet comes back
     double endTime = (double) currentTimeMillis();
     int []aspect_types = {AspectType.END_TIME};
@@ -210,6 +211,7 @@ public class AllocatorPlugIn
       a.setEstimatedResult (new AllocationResult (oldAR, newAR));
       Task t = a.getTask();
       System.out.println ("\tEND time of " + t.toString() + " is: " + endTime);
+      processData(a, executor, retData);
       getSubscriber().publishChange(a);
       getSubscriber().publishChange(t); // forces marking of the task as changed!
     } catch  (Exception e) {
@@ -221,6 +223,11 @@ public class AllocatorPlugIn
    finally {
     closeTransaction();
     }
+  }
+  
+  protected void processData (Allocation a, psl.workflakes.coolets.assets.ExecAgentAsset executor,
+  							Vector theData) {
+  	
   }
 
   /**

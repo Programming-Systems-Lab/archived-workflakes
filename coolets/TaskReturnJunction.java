@@ -6,6 +6,8 @@
  */
  package psl.workflakes.coolets;
 
+import java.util.Vector;
+
 import org.cougaar.core.society.UID;
 import org.cougaar.util.UnaryPredicate;
 import org.cougaar.core.plugin.PlugInAdapter;
@@ -35,6 +37,7 @@ public class TaskReturnJunction
 	private UID execID;
 	private TaskReturnInf originPlugIn;
 	boolean success;
+	Vector taskReturnData;
 
 
 	public UID getAllocID() { return allocID; }
@@ -50,6 +53,7 @@ public class TaskReturnJunction
 		execID = null;
 		originPlugIn = null;
 		success = false;
+		taskReturnData = new Vector();
 		System.out.println (getClass().getName());
 	}
 
@@ -58,6 +62,10 @@ public class TaskReturnJunction
 		PlugInAdapter thePlugIn = myTarget.findPlugIn(clusterID, pluginID);
 		originPlugIn = (TaskReturnInf) thePlugIn;
 	}
+	
+	public Vector getRetData() { return taskReturnData; }
+	
+	public void setDataForReturn(Object o) { taskReturnData.add(o); }
 
 	public void execute() {
 
@@ -96,7 +104,7 @@ public class TaskReturnJunction
 		}
 		else {
 			System.err.println ("Action has succeeded");
-			originPlugIn.postAction (alloc, exec);
+			originPlugIn.postAction (alloc, exec, taskReturnData);
 		}
 	}
 }
