@@ -71,6 +71,10 @@ public class TaskExpanderPlugin extends ComponentPlugin {
             if (expansion.getEstimatedResult() != null) {
                 logger.info(">>>> parent task " + expansion.getTask().getVerb() + " done <<<<");
 
+                // NOTE: should we remove the used expansions here? - could make things more efficient,
+                // but would lose history? (would also require implementing PrivilegedClaimant)
+                //blackboard.publishRemove(expansion);
+
             }
 
         }
