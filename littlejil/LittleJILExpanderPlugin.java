@@ -1,16 +1,15 @@
 package psl.workflakes.littlejil;
 
-import org.apache.log4j.Logger;
-import org.cougaar.core.blackboard.IncrementalSubscription;
-import org.cougaar.core.plugin.ComponentPlugin;
-import org.cougaar.core.service.DomainService;
-import org.cougaar.core.domain.RootFactory;
-import org.cougaar.util.UnaryPredicate;
-import org.cougaar.planning.ldm.plan.*;
+import java.util.Enumeration;
 
 import laser.littlejil.*;
-
-import java.util.*;
+import org.apache.log4j.Logger;
+import org.cougaar.core.blackboard.IncrementalSubscription;
+import org.cougaar.core.domain.RootFactory;
+import org.cougaar.core.plugin.ComponentPlugin;
+import org.cougaar.core.service.DomainService;
+import org.cougaar.planning.ldm.plan.*;
+import org.cougaar.util.UnaryPredicate;
 
 /**
  * This plugin parses a LittleJIL diagram and publishes the root task to be expanded
@@ -30,11 +29,16 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
     private static final Logger logger = Logger.getLogger(LittleJILExpanderPlugin.class);
     private IncrementalSubscription diagramSubscription;
+    private IncrementalSubscription littleJILStepsTableSubscription;
     private DomainService domainService;
     private RootFactory factory;
 
+    private LittleJILStepsTable stepsTable; // used to keep a mapping of task->step
+
     private static double endTime = 1.0;
-        // the "end time" for the tasks, which keeps increasing...
+
+
+    // the "end time" for the tasks, which keeps increasing...
         // TODO: make sure there are no issues with sharing this among different workflows
         // (intuitively there shouldn't be since later tasks will always have a later end time)
 
@@ -46,20 +50,39 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         factory = domainService.getFactory();
     }
 
+    private static class DiagramPredicate implements UnaryPredicate {
+        public boolean execute(Object o) {
+            return (o instanceof Diagram);
+        }
+    }
+
+    private static class LittleJILStepsTablePredicate implements UnaryPredicate {
+        public boolean execute(Object o) {
+            return (o instanceof LittleJILStepsTable);
+        }
+    }
+
     public void setupSubscriptions() {
 
        // set up the subscription to get diagrams
-        diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new UnaryPredicate () {
-            public boolean execute(Object o) {
-                return (o instanceof Diagram);
-            }
-        });
+        diagramSubscription = (IncrementalSubscription) blackboard.subscribe(new DiagramPredicate());
+        littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
 
         logger.info("ready.");
 
     }
 
     public void execute() {
+
+        // if there isn't a steps table in the blackboard yet, create one. otherwise, we will
+        // use the one that is there.
+        if (littleJILStepsTableSubscription.size() == 0) {
+            stepsTable = new LittleJILStepsTable();
+            blackboard.publishAdd(stepsTable);
+        }
+        else {
+            stepsTable = (LittleJILStepsTable) littleJILStepsTableSubscription.first();
+        }
 
         for (Enumeration e = diagramSubscription.getAddedList();e.hasMoreElements();) {
 
@@ -165,6 +188,21 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         }
 
+        // make tasks for any handlers that this step has, and put them in the steps table
+        // (they will be used in the ExceptionHandlerPlugin)
+        for (Enumeration handlers = step.handlers();handlers.hasMoreElements();) {
+            HandlerBinding handlerBinding = (HandlerBinding) handlers.nextElement();
+            if (handlerBinding.getTarget() != null && handlerBinding.getTarget() instanceof Step) {
+                Step handlerStep = (Step) handlerBinding.getTarget();
+                if (handlerStep != null) {
+                    stepsTable.put(handlerStep, makeTask(handlerStep));
+                }
+            }
+        }
+
+        // finally, add this task to the task->steps table
+        stepsTable.put(parentTask, step);
+
         return parentTask;
     }
 
@@ -268,6 +306,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         return parentTask;
     }
+
 
 
 }
