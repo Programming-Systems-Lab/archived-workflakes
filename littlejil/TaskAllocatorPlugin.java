@@ -9,8 +9,7 @@ import org.cougaar.core.plugin.ComponentPlugin;
 import org.cougaar.core.service.*;
 import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
-import psl.workflakes.littlejil.assets.ExecAgentAsset;
-import psl.workflakes.littlejil.assets.PropertyGroupFactory;
+import psl.workflakes.littlejil.assets.*;
 
 /**
  * This class should get tasks posted on a blackboard and allocate them according to
@@ -64,7 +63,6 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
         // now set up the subscription to get leaf tasks
         leafTasksSubscription = (IncrementalSubscription) blackboardService.subscribe(new LeafTaskPredicate());
 
-
     }
 
     public void execute() {
@@ -73,7 +71,12 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
             Task task = (Task) tasks.nextElement();
 
             // TODO: use a real execution agent
+            // TESTING
             ExecAgentAsset asset = (ExecAgentAsset) factory.createInstance("ExecAgent");
+            NewExecutorPG executorPG = (NewExecutorPG) factory.createPropertyGroup("ExecutorPG");
+            executorPG.setJunction("psl.workflakes.littlejil.TaskExecutorInternalPlugin$DummyExecutableTask");
+            asset.setExecutorPG(executorPG);
+
             Allocation allocation = factory.createAllocation(task.getPlan(), task, asset, null, Role.ASSIGNED);
 
             logger.info("publishing allocation for task " + task.getVerb());
