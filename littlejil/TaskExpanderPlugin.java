@@ -81,13 +81,13 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
         }*/
 
-        for (Enumeration expansions = expansionsSubscription.getAddedList(); expansions.hasMoreElements();) {
+        /*for (Enumeration expansions = expansionsSubscription.getAddedList(); expansions.hasMoreElements();) {
             Expansion expansion = (Expansion) expansions.nextElement();
             //logger.debug("got new expansion " + expansion);
 
             processExpansion(expansion, true);
 
-        }
+        }*/
 
         // look for changed expansions that may be done
         for (Enumeration expansions = expansionsSubscription.getChangedList(); expansions.hasMoreElements();) {
@@ -97,9 +97,9 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
             if (expansion.getEstimatedResult() != null) {
                 logger.info(">>>> parent task " + expansion.getTask().getVerb() + " is done <<<<");
-            } else if (expansion.getReportedResult() == null) {
+            }/* else if (expansion.getReportedResult() == null) {
                 processExpansion(expansion, false);
-            }
+            }*/
 
         }
 
@@ -108,6 +108,8 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
             Expansion expansion = (Expansion) expansions.nextElement();
             Workflow wf = expansion.getWorkflow();
+
+            processExpansion(expansion, true);
 
             Constraint constraint;
             while ((constraint = wf.getNextPendingConstraint()) != null) {
@@ -120,8 +122,8 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
                     // we've resolved this constraint, but before we continue, we should check if
                     // there aren't more constraints for this task that have not been resolved
-                    if (hasMoreConstraints(wf, constrainedTask)) {
-                        logger.debug("task " + constrainedTask.getVerb() + "has more constraints");
+                    if (hasMoreConstraints(wf, constrainedTask, false)) {
+                        logger.debug("task " + constrainedTask.getVerb() + " has more constraints");
                         continue;
                     }
 
@@ -147,16 +149,33 @@ public class TaskExpanderPlugin extends ComponentPlugin {
      * @param constrainedTask the task to check
      * @return true if there are any unresolved constraints that constrain the given task
      */
-    private boolean hasMoreConstraints(Workflow workflow, Task constrainedTask) {
+    private boolean hasMoreConstraints(Workflow workflow, Task constrainedTask, boolean checkParent) {
+
+        if (constrainedTask.getWorkflow() == null) {
+            return false;
+        }
 
         boolean constrained = false;
         for (Enumeration e = workflow.getTaskConstraints(constrainedTask);e.hasMoreElements();) {
             Constraint constraint = (Constraint) e.nextElement();
 
-            if (constraint.getConstrainedTask() == constrainedTask &&
-                    Double.isNaN(constraint.getConstrainedEventObject().getResultValue())) {
-                constrained = true;
-                break;
+            try {
+                if (constraint.getConstrainedTask() == constrainedTask &&
+                        /*constraint.getConstrainedEventObject().isConstraining() &&*/
+                        Double.isNaN(constraint.getConstrainedEventObject().getResultValue())) {
+                    constrained = true;
+                    break;
+                }
+            } catch (Exception e1) {
+                continue;
+            }
+        }
+
+        if (!constrained && checkParent) {
+            Task parent = constrainedTask.getWorkflow().getParentTask();
+            if (parent != null) {
+                //logger.debug("[" + constrainedTask.getVerb() + ": checking parent for constraints]");
+                constrained = hasMoreConstraints(parent.getWorkflow(), parent, true);
             }
         }
 
@@ -171,10 +190,10 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
 
         //logger.debug("expansion is for task " + parentTask + ", which has workflow " + parentWorkflow);
-        if (!checkParentConstraints)
+        /*if (!checkParentConstraints)
             logger.debug("[not checking parent task constraints]");
-
-        if (parentWorkflow != null && checkParentConstraints) {
+*/
+        /*if (parentWorkflow != null && checkParentConstraints) {
 
             Enumeration constraints = parentWorkflow.getTaskConstraints(parentTask);
             while (constraints.hasMoreElements()) {
@@ -183,6 +202,12 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                     logger.debug("task has existing constraints, not expanding");
                     return;
                 }
+            }
+        }*/
+        if (parentWorkflow != null) {
+            if (hasMoreConstraints(parentWorkflow, parentTask, true)) {
+                logger.debug("parent task has existing constraints, not expanding");
+                return;
             }
         }
 
@@ -197,7 +222,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
             //logger.debug("looking at task " + task.getVerb());
 
             if (task.getPlanElement() == null) {
-                logger.debug("task " + task.getVerb() + " is a leaf task");
+                //logger.debug("task " + task.getVerb() + " is a leaf task");
 
                 // have to check each constraint, because this task may just be constraining
                 // some other task. if we find that this task is indeed being constrained, then
@@ -205,16 +230,16 @@ public class TaskExpanderPlugin extends ComponentPlugin {
                 boolean constrained = false;
                 for (Enumeration constraints = workflow.getTaskConstraints(task); constraints.hasMoreElements();) {
                     Constraint c = (Constraint) constraints.nextElement();
-                    logger.debug("  found a constraint: " + PluginUtil.constraintToString(c));
+                    //logger.debug("  found a constraint: " + PluginUtil.constraintToString(c));
 
                     if (c.getConstrainedTask() == task) {
                         constrained = true;
-                        logger.debug("  constraint exists, cannot publish this task at this time");
+                        //logger.debug("  constraint exists, cannot publish this task at this time");
                         break;
                     }
                 }
                 if (!constrained) {
-                    logger.debug("  this task is not constrained, publishing it");
+                    logger.debug("task " + task.getVerb() + " is not constrained, publishing it");
                     blackboard.publishAdd(task);
                 }
 
