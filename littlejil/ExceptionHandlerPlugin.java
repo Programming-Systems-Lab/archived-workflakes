@@ -26,29 +26,6 @@ import laser.littlejil.Step;
  *  - the exception handler is retrieved. at the moment only the first one is considered
  *  - the rest corresponds to the behavior of the exception handler (restarting, continuing, completing, rethrowing)
  *
- * Notes: (newest to oldest)
- *  12/16/02: solved the problem with cougaar complaining when tasks/expansions are removed
- *            extractDependentTasks() now correctly removes the tasks from the workflow, not the blackboard
- *            The class now implements PrivilegedClaimant to be able to remove other plugin's expansions
- *
- *  12/12/02: corner cases to take care of: when there's a post-requisiste and the task has a RESTART handler,
- *            we need to restart at the "parent task" level so that the pre-req gets ran.
- *            that will actually have to be a special case in LittleJILExpanderPlugin
- *
- *            Also, not really dealing with paralell substasks now... will have to somehow wait for the
- *            subtasks to be done before doing whatever the handler is.... that could be hard!
- *
- *            Finally, still getting some complains and warnings from Cougaar when tasks and/or
- *            expansions are removed... Need to look into how to do that "properly"
- *
- *  12/12/02 (later): now all four cases work for simple cases. Still a problem with the restart task:
- *            if the task had a pre-requisite, it will not be ran before the tasks's workflow. this is
- *            because of the "parent task" folding
- *
- *  12/12/02: complete and rethrow are working, at least for simple cases. however, cougaar complains
- *            when tasks are removed (in continue case) and when a task is completed but the parent tasks
- *            fails (complains of updating a non-existant allocation)
- *
  * Implementing the PrivilegedClaimant interface allows this plugin to remove expansion that were
  * posted by other plugins
  *
@@ -128,7 +105,8 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     logger.debug("found handler task: " + handlerTask.getVerb());
                 }
 
-
+                /////////////////////////////////////////////////////////////////////////////////////////////
+                // CONTINUE handler
                 if (handlerBinding.getControlFlow() == HandlerBinding.CONTINUE) {
 
                     if (failedTask == null) {
@@ -179,7 +157,11 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, remainingWorkflow, null);
 
                     blackboard.publishAdd(expansion);
-                } else if (handlerBinding.getControlFlow() == HandlerBinding.COMPLETE) {
+
+                }
+                /////////////////////////////////////////////////////////////////////////////////////////////
+                // COMPLETE handler
+                else if (handlerBinding.getControlFlow() == HandlerBinding.COMPLETE) {
 
                     // first remove the existing expansion for this task, since we won't run any more tasks
                     if (task.getPlanElement() != null) {
@@ -203,7 +185,10 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
 
                     blackboard.publishAdd(task);
                     blackboard.publishAdd(expansion);
-                } else if (handlerBinding.getControlFlow() == HandlerBinding.RESTART) {
+                }
+                /////////////////////////////////////////////////////////////////////////////////////////////
+                // RESTART handler
+                else if (handlerBinding.getControlFlow() == HandlerBinding.RESTART) {
 
                     // first check that this came from a failed task below us
                     if (failedTask == null) {
@@ -232,36 +217,9 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     copiedWorkflow.setParentTask(task);
 
                     // remove the old expansion - but have to manually remove tasks from workflow first
-                    clearWorkflow((NewWorkflow)originalWorkflow);
-                    logger.debug("removing expansion: " + originalExpansion);
+                    // otherwise, the tasks associated with this expansion will also be publishRemove()'d
+                    clearWorkflow((NewWorkflow) originalWorkflow);
                     blackboard.publishRemove(originalExpansion);
-
-                    /*// following the "corner case" described above, if this task has pre-reqs, and
-                    // it has a RESTART handler, and it's not a "parent" task, then we throw it up.
-                    if (step.getPrerequisite() != null && !task.getVerb().toString().endsWith("Parent")) {
-                        // throw it up to the parent
-                        logger.debug("deferring restart handler to parent");
-
-                        // we also need to remove this task's start_time pref, otherwise the new posted expansion
-                        // will start right away
-//                        if (task.getPreference(AspectType.START_TIME) != null && task.getPreference(AspectType.END_TIME) != null) {
-//                             logger.debug("resetting preferences of task " + task.getVerb());
-//                             Vector v = new Vector();
-//                             v.add(task.getPreference(AspectType.END_TIME));
-//                             ((NewTask)task).setPreferences(v.elements());
-//                         }
-
-                        // re-publish the task's expansion
-                        Expansion newExpansion = factory.createExpansion(task.getPlan(), task, copiedWorkflow, null);
-
-                        //blackboard.publishChange(task);
-                        blackboard.publishAdd(newExpansion);
-
-                        // and re-throw the exception
-                        blackboard.publishAdd(new LittleJILException(exception));
-                        continue;   // with the for (Enumeration exceptions...)
-                    }*/
-
 
                     // if there is a handler task, and it's not already in the workflow, we want to insert that first....
                     // (it could be already if this is the second time we are restarting the task)
@@ -292,19 +250,16 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         }
                     }
 
-                    logger.debug("re-publishing original workflow for restarting task: " + copiedWorkflow);
                     NewExpansion expansion = (NewExpansion) factory.createExpansion(task.getPlan(), task, copiedWorkflow, null);
 
                     blackboard.publishChange(task);
 
                     blackboard.publishAdd(expansion);
-                    logger.debug("published expansion " + expansion);
 
-
-
-
-                } else /*if (handlerBinding.getControlFlow() == HandlerBinding.RETHROW)*/ {
-                    // default action is to RETHROW the exception
+                }
+                /////////////////////////////////////////////////////////////////////////////////////////////
+                // RETHROW handler (default)
+                else /*if (handlerBinding.getControlFlow() == HandlerBinding.RETHROW)*/ {
 
                     // remove the current expansion, if any
                     if (task.getPlanElement() != null) {
@@ -335,7 +290,10 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                     logger.info(">>> task " + task.getVerb() + " FAILED <<<");
                 }
 
-            } else {
+            }
+            /////////////////////////////////////////////////////////////////////////////////////////////
+            // no handler found
+            else {
 
                 // remove the current expansion, if any
                 if (task.getPlanElement() != null) {
@@ -382,8 +340,7 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
             if (task.getPlanElement() != null && task.getPlanElement() instanceof Allocation) {
                 logger.debug("removing allocation for task " + task.getVerb());
                 blackboard.publishRemove(task.getPlanElement());
-            }
-            else if (task.getPlanElement() != null && task.getPlanElement() instanceof Expansion) {
+            } else if (task.getPlanElement() != null && task.getPlanElement() instanceof Expansion) {
                 /*task.getPlanElement().setObservedResult(null);
                 task.getPlanElement().setEstimatedResult(null);
                 ((PlanElementForAssessor)task.getPlanElement()).setReceivedResult(null);*/
@@ -449,22 +406,21 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
         // as we remove them we modify the source of the enumerator, with unpredicatble results
 
         Vector v = new Vector();
-        for (Enumeration e = originalWorkflow.getTasks();e.hasMoreElements();) {
+        for (Enumeration e = originalWorkflow.getTasks(); e.hasMoreElements();) {
             v.add(e.nextElement());
         }
 
-        for (Enumeration e = originalWorkflow.getConstraints();e.hasMoreElements();) {
+        for (Enumeration e = originalWorkflow.getConstraints(); e.hasMoreElements();) {
             v.add(e.nextElement());
         }
 
 
-        for (Enumeration e = v.elements();e.hasMoreElements();) {
+        for (Enumeration e = v.elements(); e.hasMoreElements();) {
             Object o = e.nextElement();
             if (o instanceof Task) {
-                originalWorkflow.removeTask((Task)o);
-            }
-            else {
-                originalWorkflow.removeConstraint((Constraint)o);
+                originalWorkflow.removeTask((Task) o);
+            } else {
+                originalWorkflow.removeConstraint((Constraint) o);
             }
 
         }
