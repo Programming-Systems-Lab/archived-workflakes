@@ -49,7 +49,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     public static final Verb DUMMY_TASK = new Verb("DUMMY_TASK");
 
 
-
     /**
      * Used by the binding utility through reflection to set my DomainService
      */
@@ -71,10 +70,10 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     }
 
     private static class ResourceTablePredicate implements UnaryPredicate {
-           public boolean execute(Object o) {
-               return (o instanceof LittleJILResourceTable);
-           }
-       }
+        public boolean execute(Object o) {
+            return (o instanceof LittleJILResourceTable);
+        }
+    }
 
     private static class PostHandlerRequestPredicate implements UnaryPredicate {
         public boolean execute(Object o) {
@@ -119,16 +118,12 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             stepsTable = (LittleJILStepsTable) stepsTableSubscription.first();
         }
 
-        resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
-        assert(resourceTable != null);
-
-        /*// TODO: temporary
         if (resourceTableSubscription.size() == 0) {
             resourceTable = new LittleJILResourceTable();
             blackboard.publishAdd(resourceTable);
         } else {
             resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
-        }*/
+        }
 
         // process any diagrams found
         for (Enumeration e = diagramSubscription.getAddedList(); e.hasMoreElements();) {
@@ -179,7 +174,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
                 logger.debug("found handler binding in blackboard for task: " + task.getVerb());
 
-                NewTask handlerTask = (NewTask) makeTask((Step)binding.getTarget());
+                NewTask handlerTask = (NewTask) makeTask((Step) binding.getTarget());
 
                 // insert it into the task's workflow (ie, at the same level as the given task)
                 NewWorkflow parentWorkflow = (NewWorkflow) task.getWorkflow();
@@ -195,8 +190,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                     constraint.setConstrainedTask(handlerTask);
                 }
                 else {*/
-                    constraint.setConstrainingTask(handlerTask);
-                    constraint.setConstrainedTask(task);
+                constraint.setConstrainingTask(handlerTask);
+                constraint.setConstrainedTask(task);
                 //}
 
                 constraint.setConstrainingAspect(AspectType.END_TIME);
@@ -294,9 +289,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             ((NewTask) task).setPreference(pref);
 
             // add this task to the task->steps table
+            logger.debug("adding task " + task + " to steps table");
             stepsTable.put(task, step);
-        }
-        else {
+        } else {
 
             // only for RESTART handlers, if the task has pre-reqs, we call makeTaskWithRequisites()
             if (request.getType() == ExceptionHandlerRequest.RESTART &&
@@ -319,7 +314,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         if (request != null && request.getType() == ExceptionHandlerRequest.COMPLETE) {
             // create a "dummy" task, that will always be "executed" by the ExecutorPlugin, and put in the workflow
-            NewTask dummyTask= factory.newTask();
+            NewTask dummyTask = factory.newTask();
             dummyTask.setVerb(DUMMY_TASK);
 
             ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
@@ -332,8 +327,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             dummyTask.setWorkflow(workflow);
 
             lastTask = dummyTask;
-        }
-        else {
+        } else {
             // get subsets of this step and create tasks for those, and put them in the workflow
             // NOTE: tasks are returned in the correct order (according to Little-JIL API docs)
             boolean continueFlag = false;   // (only if request is ContinueRequest) indicates that tasks should be now added
@@ -379,13 +373,11 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                         Object o = resourceTable.getResource(step.getDiagram(), cardinalityParam.getName());
                         if (o == null) {
                             logger.warn("Cardinality resource " + cardinalityParam.getName() + " not found!");
-                        }
-                        else if (!(o instanceof Collection)) {
+                        } else if (!(o instanceof Collection)) {
                             logger.warn("Cardinality resource " + cardinalityParam.getName() + " found, but not a Collection");
-                        }
-                        else {
+                        } else {
                             collection = (Collection) o;
-                            logger.info("found resource iterator of size "+ collection.size());
+                            logger.info("found resource iterator of size " + collection.size());
                             iterator = collection.iterator();
                         }
                     }
@@ -396,7 +388,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                     count = (count < collection.size() ? count : collection.size());
                 }
 
-                for (int i=0;i<count ;i++) {
+                for (int i = 0; i < count; i++) {
 
                     NewTask subtask = makeSubTask(substep, substepBinding, task, workflow);
 
@@ -454,8 +446,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             //logger.debug("publishing expansion " + expansion);
             blackboard.publishAdd(expansion);
 
-        }
-        else if (request != null && request.getType() == ExceptionHandlerRequest.TRY) {
+        } else if (request != null && request.getType() == ExceptionHandlerRequest.TRY) {
             // check: if this was a TRY request and we haven't added any tasks, it means there weren't any left
             // and we should post an exception
 
@@ -465,10 +456,8 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         }
 
 
-
         return task;
     }
-
 
 
     /**
@@ -506,8 +495,7 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
             }
 
             logger.debug("created parent task " + parentTask.getVerb());
-        }
-        else {
+        } else {
             logger.debug("processing ExceptionHandlerRequest for task " + parentTask.getVerb());
 
             // remove the task's current expansion
@@ -596,47 +584,49 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
         // set the parameter bindings for this task
         LittleJILStepsTable.Entry entry = stepsTable.getEntry(subtask);
-        assert(entry != null);  // all tasks should have an entry
 
-        // initialize the subtasks's in parameters... note that these values might get
-        // updated later by the TaskExpander (if for example the parameters that they are getting
-        // values from are updated by one of the subtasks)
-        for (Enumeration parameterBindings = substepBinding.parameterBindings(); parameterBindings.hasMoreElements();) {
-            ParameterBinding binding = (ParameterBinding) parameterBindings.nextElement();
-            if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
-                    binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
+        if (entry != null) {
 
-                ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
-                ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
+            // initialize the subtasks's in parameters... note that these values might get
+            // updated later by the TaskExpander (if for example the parameters that they are getting
+            // values from are updated by one of the subtasks)
+            for (Enumeration parameterBindings = substepBinding.parameterBindings(); parameterBindings.hasMoreElements();) {
+                ParameterBinding binding = (ParameterBinding) parameterBindings.nextElement();
+                if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
+                        binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
 
-                if (parentDeclaration.getParameterValue() == null) {
+                    ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
+                    ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
 
-                    // instantiate it a new parameter value
-                    logger.debug("instantiating a new object for parent parameter " + parentDeclaration.getName());
-                    try {
-                        Class c = Class.forName(parentDeclaration.getParameterClassName());
+                    if (parentDeclaration.getParameterValue() == null) {
 
-                        // HACK to have an "interesting" value in some cases
-                        Object o = null;
-                        if (c == String.class) {
-                            o = "42";
+                        // instantiate it a new parameter value
+                        logger.debug("instantiating a new object for parent parameter " + parentDeclaration.getName());
+                        try {
+                            Class c = Class.forName(parentDeclaration.getParameterClassName());
+
+                            // HACK to have an "interesting" value in some cases
+                            Object o = null;
+                            if (c == String.class) {
+                                o = "42";
+                            } else {
+                                o = c.newInstance();
+                            }
+
+                            parentDeclaration.setParameterValue(o);
+                        } catch (Exception e) {
+                            logger.warn("Could not instantiate parameter: " + e);
                         }
-                        else {
-                            o = c.newInstance();
-                        }
 
-                        parentDeclaration.setParameterValue(o);
-                    } catch (Exception e) {
-                        logger.warn("Could not instantiate parameter: " + e);
                     }
 
+                    childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
                 }
-
-                childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
             }
-        }
 
-        entry.setParameterBindings(PluginUtil.collectionFromEnumeration(substepBinding.parameterBindings()));
+            entry.setParameterBindings(PluginUtil.collectionFromEnumeration(substepBinding.parameterBindings()));
+
+        }
 
         logger.debug("adding task " + subtask.getVerb() + " to workflow of task " + parentTask.getVerb());
         subtask.setParentTask(parentTask);

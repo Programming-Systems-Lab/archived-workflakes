@@ -44,8 +44,8 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
     public void setPrototypeRegistryService(PrototypeRegistryService prototypeRegistryService) {
         this.prototypeRegistry = prototypeRegistryService;
 
-        // create asset prototype
-        factory.addPropertyGroupFactory(new PropertyGroupFactory());
+        // TEMPORARY -- create asset prototype
+        /*factory.addPropertyGroupFactory(new PropertyGroupFactory());
         {
             ExecClassAgentAsset prototype = (ExecClassAgentAsset)
                     factory.createPrototype(ExecClassAgentAsset.class, "ExecClassAgentProto");
@@ -58,7 +58,7 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
                     factory.createPrototype(ExecWorkletAgentAsset.class, "ExecWorkletAgentProto");
 
             prototypeRegistry.cachePrototype("ExecWorkletAgent", prototype);
-        }
+        }*/
 
 
     }

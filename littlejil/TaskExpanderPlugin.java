@@ -285,25 +285,26 @@ public class TaskExpanderPlugin extends ComponentPlugin {
      */
     private void setInParams(Task task) {
         LittleJILStepsTable.Entry entry = stepsTable.getEntry(task);
-        assert(entry != null);
 
-        Collection paramBindings = entry.getParameterBindings();
+        if (entry != null) {
+            Collection paramBindings = entry.getParameterBindings();
 
-        for (Iterator i = paramBindings.iterator(); i.hasNext();) {
-            ParameterBinding binding = (ParameterBinding) i.next();
-            if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
-                    binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
+            for (Iterator i = paramBindings.iterator(); i.hasNext();) {
+                ParameterBinding binding = (ParameterBinding) i.next();
+                if (binding.getBindingMode() == ParameterBinding.COPY_IN ||
+                        binding.getBindingMode() == ParameterBinding.COPY_IN_AND_OUT) {
 
-                ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
-                ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
+                    ParameterDeclaration childDeclaration = binding.getDeclarationInChild();
+                    ParameterDeclaration parentDeclaration = binding.getDeclarationInParent();
 
-                assert(parentDeclaration.getParameterValue() != null);
+                    assert(parentDeclaration.getParameterValue() != null);
 
-                if (parentDeclaration.getParameterValue() != childDeclaration.getParameterValue()) {
-                    childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
+                    if (parentDeclaration.getParameterValue() != childDeclaration.getParameterValue()) {
+                        childDeclaration.setParameterValue(parentDeclaration.getParameterValue());
 
-                    logger.debug("in param " + childDeclaration.getName() +
-                            " set to " + childDeclaration.getParameterValue());
+                        logger.debug("in param " + childDeclaration.getName() +
+                                " set to " + childDeclaration.getParameterValue());
+                    }
                 }
             }
         }

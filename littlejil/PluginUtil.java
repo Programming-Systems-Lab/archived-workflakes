@@ -24,7 +24,7 @@ public class PluginUtil {
 
         Vector v = new Vector();
 
-        while (e.hasMoreElements()) {
+        while (e != null && e.hasMoreElements()) {
             v.addElement(e.nextElement());
         }
 

@@ -29,6 +29,10 @@ public class TaskExecutorClassPlugin extends AbstractTaskExecutorPlugin {
         instances = new Hashtable();
     }
 
+    public void setupSubscriptions() {
+        super.setupSubscriptions();
+    }
+
 
     public void executeTask(Allocation allocation, Hashtable inParams) {
 
@@ -102,10 +106,6 @@ public class TaskExecutorClassPlugin extends AbstractTaskExecutorPlugin {
 
             logger.info("executing method " + method);
 
-            // for TESTING
-            /*laser.littlejil.types.SimpleDuration v = new laser.littlejil.types.SimpleDuration();
-            v.setSeconds((int)(Math.random()*100));*/
-
             if (method.equals("FindBase")) {
 
                 // set the "base"
@@ -137,17 +137,8 @@ public class TaskExecutorClassPlugin extends AbstractTaskExecutorPlugin {
                 logger.debug("AdaptClients got clientInfo vector: " + clientInfo);
 
             }
-            else {  // for TESTING
-
-                // expect a List named "in", add something and put the list as "result"
-                List in = (List) inParams.get("in");
-                if (in == null) {
-                    throw new Exception("expected 'in' parameter");
-                }
-
-                in.add(new Integer(random.nextInt(100)));
-
-                outParams.put("result", in);
+            else {
+                // do nothing
             }
 
         }

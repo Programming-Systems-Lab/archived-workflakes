@@ -69,6 +69,9 @@ public class TaskExecutorWorkletPlugin extends AbstractTaskExecutorPlugin {
 
     }
 
+    public void setupSubscriptions() {
+        super.setupSubscriptions();
+    }
 
     protected void executeTask(Allocation allocation, Hashtable inParams) {
 

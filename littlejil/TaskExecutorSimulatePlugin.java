@@ -27,6 +27,10 @@ public class TaskExecutorSimulatePlugin extends AbstractTaskExecutorPlugin {
         super(ExecAgentAsset.class);
     }
 
+    public void setupSubscriptions() {
+        super.setupSubscriptions();
+    }
+
     protected void executeTask(Allocation allocation, Hashtable inParams) {
 
          (new ExecutionThread(allocation)).start();
