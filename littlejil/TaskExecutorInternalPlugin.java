@@ -17,8 +17,13 @@ import java.util.*;
 
 public class TaskExecutorInternalPlugin extends AbstractTaskExecutorPlugin {
 
+    private Hashtable instances;    // instances of classes ready to use
+                                    // NOTE: these classes must be threadsafe!!
+
     public TaskExecutorInternalPlugin() {
         super(ExecClassAgentAsset.class);
+
+        instances = new Hashtable();
     }
 
 
@@ -54,8 +59,14 @@ public class TaskExecutorInternalPlugin extends AbstractTaskExecutorPlugin {
 
                 ExecClassAgentAsset execAgent = (ExecClassAgentAsset) allocation.getAsset();
                 String className = execAgent.getClassPG().getClassName();
-                Class execClass = Class.forName(className);
-                ExecutableTask executable = (ExecutableTask) execClass.newInstance(); //new DummyExecutableTask();
+
+                ExecutableTask executable = (ExecutableTask) instances.get(className);
+                if (executable == null) {
+                    logger.debug("instantiating class " + className);
+                    Class execClass = Class.forName(className);
+                    executable = (ExecutableTask) execClass.newInstance(); //new DummyExecutableTask();
+                    instances.put(className, executable);
+                }
 
                 Hashtable outParams = new Hashtable();
                 executable.execute(task.getVerb().toString(), inParams, outParams);
