@@ -1,7 +1,9 @@
 rem Script to generate asset classes
+set PSL_HOME=C:\valetto\columbia
+set ALP_INSTALL_PATH=%PSL_HOME%\jars\cougaar
 
-set LIBPATHS=%ALP_INSTALL_PATH%\lib\core.jar
-set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\lib\build.jar
+set LIBPATHS=%ALP_INSTALL_PATH%\core.jar
+set LIBPATHS=%LIBPATHS%;%ALP_INSTALL_PATH%\build.jar
 echo on
 
 rem Regenerate and recompile all property/asset files

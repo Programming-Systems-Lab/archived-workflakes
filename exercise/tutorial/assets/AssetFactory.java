@@ -9,7 +9,7 @@
  * </copyright>
  */
 
-// source machine generated at Fri May 25 23:38:16 GMT+02:00 2001 - Do not edit
+// source machine generated at Thu May 31 13:58:57 GMT+02:00 2001 - Do not edit
 /* @generated */
 package psl.workflakes.exercise.tutorial.assets;
 import org.cougaar.domain.planning.ldm.asset.EssentialAssetFactory;
