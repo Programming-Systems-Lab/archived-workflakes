@@ -71,35 +71,13 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
     public void execute() {
 
-        /*for (Enumeration tasks = tasksSubscriptions.getAddedList(); tasks.hasMoreElements();) {
-            Task task = (Task) tasks.nextElement();
-            logger.debug("posting expansion for task " + task.getVerb());
-
-            // post the expansion for this task
-            //Expansion expansion = factory.createExpansion(task.getPlan(), task, task.getWorkflow(), null);
-            blackboard.publishAdd(task.getPlanElement());
-
-        }*/
-
-        /*for (Enumeration expansions = expansionsSubscription.getAddedList(); expansions.hasMoreElements();) {
-            Expansion expansion = (Expansion) expansions.nextElement();
-            //logger.debug("got new expansion " + expansion);
-
-            processExpansion(expansion, true);
-
-        }*/
-
         // look for changed expansions that may be done
         for (Enumeration expansions = expansionsSubscription.getChangedList(); expansions.hasMoreElements();) {
             Expansion expansion = (Expansion) expansions.nextElement();
 
-            //logger.debug("got changed expansion: " + expansion);
-
             if (expansion.getEstimatedResult() != null) {
                 logger.info(">>>> parent task " + expansion.getTask().getVerb() + " is done <<<<");
-            }/* else if (expansion.getReportedResult() == null) {
-                processExpansion(expansion, false);
-            }*/
+            }
 
         }
 
@@ -206,7 +184,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
         }*/
         if (parentWorkflow != null) {
             if (hasMoreConstraints(parentWorkflow, parentTask, true)) {
-                logger.debug("parent task has existing constraints, not expanding");
+                logger.debug("parent task " + parentTask.getVerb() + " has existing constraints, not expanding");
                 return;
             }
         }

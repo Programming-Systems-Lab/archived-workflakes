@@ -3,24 +3,25 @@ package psl.workflakes.littlejil;
 import org.apache.log4j.Logger;
 import org.cougaar.core.blackboard.IncrementalSubscription;
 import org.cougaar.core.plugin.ComponentPlugin;
-import org.cougaar.core.service.BlackboardService;
 import org.cougaar.core.service.DomainService;
 import org.cougaar.core.domain.RootFactory;
 import org.cougaar.util.UnaryPredicate;
 import org.cougaar.planning.ldm.plan.*;
-//import psl.workflakes.littlejil.xmlschema.*;
-//import psl.workflakes.littlejil.xmlschema.types.*;
 
 import laser.littlejil.*;
 
 import java.util.*;
-import java.io.ObjectInputStream;
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
 
 /**
  * This plugin parses a LittleJIL diagram and publishes the root task to be expanded
- * by the ExpanderPlugin
+ * by the ExpanderPlugin.
+ *
+ * Design change 12/06/02
+ *  Peppo and I talked about handling pre and post-reqs. He came up with a better idea than the
+ *  current solution: encapsulate a task and its pre- and post-reqs into a parent task. This makes
+ *  it simple to process the post and pre-reqs, since we don't have to worry about moving over constraints
+ *  and such.
+ *
  * @author matias
  */
 
@@ -74,6 +75,15 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
     }
 
 
+   /**
+     * This method makes a Task from a LittleJIL step, setting the necessary properties and creating
+     * a workflow with the step's substeps (if any).
+     *
+     */
+   private NewTask makeTask(Step step) {
+       return makeTask(step, true);
+   }
+
     /**
      * This method makes a Task from a LittleJIL step, setting the necessary properties and creating
      * a workflow with the step's substeps (if any).
@@ -82,11 +92,20 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
      * if there's some kind of circular reference... TODO: might want to check for that.
      *
      * @param step the LittleJIL step to convert
+     * @param checkRequisites true if makeTaskWithRequisites should be called if the step has pre or
+     *        post-requisites. This is used mostly so makeTask() can be called from makeTaskWithRequisistes
+     *        without going into an infinite loop
      * @return a Cougaar Task, with an associated workflow (if necessary)
      */
-    private NewTask makeTask(Step step) {
+    private NewTask makeTask(Step step, boolean checkRequisites) {
+
+        if (checkRequisites && (step.getPrerequisite() != null || step.getPostrequisite() != null)) {
+            logger.debug("step " + step.getName() + " has pre- or post-requisites");
+            return makeTaskWithRequisites(step);
+        }
 
         NewTask parentTask = factory.newTask();
+
         parentTask.setVerb(new Verb(step.getName()));
 
         // TODO: should I use different END_TIME prefs? mhmm...
@@ -94,13 +113,13 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
                 (new AspectValue(AspectType.END_TIME, endTime));
         Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
         parentTask.setPreference(pref);
-
-        logger.debug("created task " + parentTask.getVerb() + " with end_time" + endTime);
         endTime++;
 
-        // get subsets of this step and create tasks for those, and a workflow to put them in
+        logger.debug("created task " + parentTask.getVerb() + " with end_time" + endTime);
+
         NewWorkflow workflow = factory.newWorkflow();
 
+        // now get subsets of this step and create tasks for those, and put them in the workflow
         // NOTE: tasks are returned in the correct order (according to Little-JIL API docs)
         Task lastTask = null;
         for (Enumeration substepsEnum = step.substeps(); substepsEnum.hasMoreElements();) {
@@ -129,58 +148,6 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
             }
 
-            if (substep.getPrerequisite() != null) {
-                // have to create a task for this pre-req and add a constraint to it goes before
-
-                final Step preReqStep = ((Reference) substep.getPrerequisite().getTarget()).refersTo();
-                logger.info("step has prerequisite " + preReqStep.getName() + ", adding constraint");
-                NewTask preReqTask = makeTask(preReqStep);
-                preReqTask.setPreference(pref);
-
-                logger.debug("adding pre-req task " + preReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
-                workflow.addTask(preReqTask);
-                preReqTask.setWorkflow(workflow);
-
-                // add constraint so that this task gets done before the task of which it is a pre-req
-                NewConstraint constraint = factory.newConstraint();
-                constraint.setConstrainingTask(preReqTask);
-                constraint.setConstrainingAspect(AspectType.END_TIME);
-
-                constraint.setConstrainedTask(task);
-                constraint.setConstrainedAspect(AspectType.START_TIME);
-
-                constraint.setConstraintOrder(Constraint.BEFORE);
-
-                workflow.addConstraint(constraint);
-
-            }
-
-            if (substep.getPostrequisite() != null) {
-                // have to create a task for this post-req and add a constraint to it goes after
-
-                final Step postReqStep = ((Reference) substep.getPostrequisite().getTarget()).refersTo();
-                logger.info("step has postrequisite " + postReqStep.getName() + ", adding constraint");
-                NewTask postReqTask = makeTask(postReqStep);
-                postReqTask.setPreference(pref);
-
-                logger.debug("adding post-req task " + postReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
-                workflow.addTask(postReqTask);
-                postReqTask.setWorkflow(workflow);
-
-                // add constraint so that this task gets done after the task of which it is a post-req
-                NewConstraint constraint = factory.newConstraint();
-                constraint.setConstrainingTask(task);
-                constraint.setConstrainingAspect(AspectType.END_TIME);
-
-                constraint.setConstrainedTask(postReqTask);
-                constraint.setConstrainedAspect(AspectType.START_TIME);
-
-                constraint.setConstraintOrder(Constraint.BEFORE);
-
-                workflow.addConstraint(constraint);
-
-            }
-
             // TODO: choice and try
 
             lastTask = task;
@@ -201,6 +168,106 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         return parentTask;
     }
 
+    /**
+     * Encapsulates a task with pre or post requisistes into a "parent" task that contains as sub-tasks
+     * the pre-req, the actual task, and the post-req in sequential order
+     * @param step
+     * @return
+     */
+    private NewTask makeTaskWithRequisites(Step step) {
+
+        RequisiteBinding preReqBinding = step.getPrerequisite();
+        RequisiteBinding postReqBinding = step.getPostrequisite();
+
+        if (preReqBinding == null && postReqBinding == null) {
+            logger.warn("makeTaskWithRequisites called for a step without requisites");
+            return makeTask(step);
+        }
+
+        NewTask parentTask = factory.newTask();
+        parentTask.setVerb(new Verb(step.getName() + "Parent"));
+
+        /*ScoringFunction scorefcn = ScoringFunction.createStrictlyAtValue
+                (new AspectValue(AspectType.END_TIME, endTime));
+        Preference pref = factory.newPreference(AspectType.END_TIME, scorefcn);
+        parentTask.setPreference(pref);
+
+        endTime++;
+        */
+        logger.debug("created parent task " + parentTask.getVerb()/* + " with end_time " + endTime*/);
+
+
+        NewWorkflow workflow = factory.newWorkflow();
+
+        // now create the actual "real" task and add it to this tasks' workflow
+        NewTask task = makeTask(step, false);   // the false flag is so that makeTask ignores pre and post-reqs
+        task.setParentTask(parentTask);
+        workflow.addTask(task);
+        task.setWorkflow(workflow);
+
+        // first add the pre-req task, if any
+        if (preReqBinding != null) {
+            // have to create a task for this pre-req and add a constraint so that it goes before
+            final Step preReqStep = ((Reference)preReqBinding.getTarget()).refersTo();
+            logger.info("step has prerequisite " + preReqStep.getName() + ", adding constraint");
+            NewTask preReqTask = makeTask(preReqStep);
+
+            logger.debug("adding pre-req task " + preReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
+            preReqTask.setParentTask(parentTask);
+            workflow.addTask(preReqTask);
+            preReqTask.setWorkflow(workflow);
+
+            // add constraint so that this task gets done before the task of which it is a pre-req
+            NewConstraint constraint = factory.newConstraint();
+            constraint.setConstrainingTask(preReqTask);
+            constraint.setConstrainingAspect(AspectType.END_TIME);
+
+            constraint.setConstrainedTask(task);
+            constraint.setConstrainedAspect(AspectType.START_TIME);
+
+            constraint.setConstraintOrder(Constraint.BEFORE);
+
+            workflow.addConstraint(constraint);
+
+        }
+
+        if (postReqBinding != null) {
+            // have to create a task for this post-req and add a constraint to it goes after
+
+            final Step postReqStep = ((Reference) postReqBinding.getTarget()).refersTo();
+            logger.info("step has postrequisite " + postReqStep.getName() + ", adding constraint");
+            NewTask postReqTask = makeTask(postReqStep);
+
+            logger.debug("adding post-req task " + postReqTask.getVerb() + " to workflow of task " + parentTask.getVerb());
+            postReqTask.setParentTask(parentTask);
+            workflow.addTask(postReqTask);
+            postReqTask.setWorkflow(workflow);
+
+            // add constraint so that this task gets done after the task of which it is a post-req
+            NewConstraint constraint = factory.newConstraint();
+            constraint.setConstrainingTask(task);
+            constraint.setConstrainingAspect(AspectType.END_TIME);
+
+            constraint.setConstrainedTask(postReqTask);
+            constraint.setConstrainedAspect(AspectType.START_TIME);
+
+            constraint.setConstraintOrder(Constraint.BEFORE);
+
+            workflow.addConstraint(constraint);
+
+        }
+
+        workflow.setParentTask(parentTask);
+        NewExpansion expansion = (NewExpansion) factory.createExpansion(parentTask.getPlan(), parentTask, workflow, null);
+
+        logger.debug("publishing parent task " + parentTask);
+        blackboard.publishAdd(parentTask);
+
+        logger.debug("publishing expansion " + expansion);
+        blackboard.publishAdd(expansion);
+
+        return parentTask;
+    }
 
 
 }
