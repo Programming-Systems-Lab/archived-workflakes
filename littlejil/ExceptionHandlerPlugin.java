@@ -210,8 +210,9 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                         continue;   // with the for (Enumeration exceptions...)
                     }
 
-                    // make a copy of this workflow, which we will post to restart the task
                     Expansion originalExpansion = (Expansion) task.getPlanElement();
+                    /*// make a copy of this workflow, which we will post to restart the task
+
                     Workflow originalWorkflow = originalExpansion.getWorkflow();
                     NewWorkflow copiedWorkflow = copyWorkflow(originalWorkflow);
                     copiedWorkflow.setParentTask(task);
@@ -254,7 +255,13 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
 
                     blackboard.publishChange(task);
 
-                    blackboard.publishAdd(expansion);
+                    blackboard.publishAdd(expansion);*/
+
+                    ///////////
+                    // change: post step, LittleJILExpanderPlugin will re-post a new expansion
+                    blackboard.publishRemove(originalExpansion);
+
+                    blackboard.publishAdd(step);
 
                 }
                 /////////////////////////////////////////////////////////////////////////////////////////////
