@@ -150,14 +150,14 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
 
                 NewConstraint constraint = factory.newConstraint();
 
-                if (binding.getControlFlow() == HandlerBinding.RETHROW) {
+                /*if (binding.getControlFlow() == HandlerBinding.RETHROW) {
                     constraint.setConstrainingTask(task);
                     constraint.setConstrainedTask(handlerTask);
                 }
-                else {
+                else {*/
                     constraint.setConstrainingTask(handlerTask);
                     constraint.setConstrainedTask(task);
-                }
+                //}
 
                 constraint.setConstrainingAspect(AspectType.END_TIME);
                 constraint.setConstrainedAspect(AspectType.START_TIME);
@@ -256,7 +256,9 @@ public class LittleJILExpanderPlugin extends ComponentPlugin {
         NewWorkflow workflow = factory.newWorkflow();
         Task lastTask = null;
 
-        if (request != null && request.getType() == ExceptionHandlerRequest.COMPLETE) {
+        if (request != null &&
+                request.getType() == ExceptionHandlerRequest.COMPLETE
+                ) {
             // create a "dummy" task, that will always be "executed" by the ExecutorPlugin, and put in the workflow
             NewTask dummyTask= factory.newTask();
             dummyTask.setVerb(DUMMY_TASK);

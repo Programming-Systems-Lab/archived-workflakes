@@ -197,11 +197,16 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
                 // RETHROW handler (default)
                 else /*if (handlerBinding.getControlFlow() == HandlerBinding.RETHROW)*/ {
 
-                    // remove the current expansion, if any
+                    /*// remove the current expansion, if any
                     if (task.getPlanElement() != null) {
                         logger.debug("removing expansion for task " + task.getVerb());
                         blackboard.publishRemove(task.getPlanElement());
-                    }
+                    }*/
+
+                    // create a RestartRequest to "send" to the LittleJILExpanderPlugin
+                    ExceptionHandlerRequest request =
+                            new ExceptionHandlerRequest(ExceptionHandlerRequest.COMPLETE, step, task, failedStep);
+                    blackboard.publishAdd(request);
 
                     // post a HandlerRequest so that the handler task gets posted by LittleJILExpanderPlugin
                     if (handlerBinding.getTarget() != null) {
