@@ -107,7 +107,13 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
             NewWorkflow remainingWorkflow = null;   // will be used if there's a continuation handler
             NewWorkflow originalWorkflow = null;    // will be used if we need to restart the task
 
+
+            // TODO: when the exception is handled at a task that has subtasks with subtasks, then
+            // for COMPLETE, we need to publishRemove(expansion) *before* we get the remaining workflow,
+            // but for CONTINUE we need to do it afterwards... find a better way/way that works.
+
             if (exception.getNestedException() != null) {
+
                 Task failedTask = exception.getNestedException().getTask();
                 Workflow workflow = failedTask.getWorkflow();
 
@@ -122,10 +128,9 @@ public class ExceptionHandlerPlugin extends ComponentPlugin implements Privilege
 
                 //logger.debug("after extractDependentTasks, got workflow " + remainingWorkflow);
                 if (task.getPlanElement() != null) {
-                    logger.debug("removing expansion for task " + task);
+                    logger.debug("removing expansion for task " + task.getVerb());
                     blackboard.publishRemove(task.getPlanElement());
                 }
-
             }
 
 

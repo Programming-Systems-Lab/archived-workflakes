@@ -70,6 +70,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
             if (expansion.getEstimatedResult() != null) {
                 logger.info(">>>> parent task " + expansion.getTask().getVerb() + " done <<<<");
+
             }
 
         }
@@ -124,17 +125,18 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
         if (parentWorkflow != null) {
             if (hasMoreConstraints(parentWorkflow, parentTask, true)) {
-                logger.debug("parent task " + parentTask.getVerb() + " has existing constraints, not expanding");
+                //logger.debug("parent task " + parentTask.getVerb() + " has existing constraints, not expanding");
                 return;
             }
         }
 
         Workflow workflow = expansion.getWorkflow();
         if (!workflow.getTasks().hasMoreElements()) {
-            logger.info("expansion " + expansion + " has no more tasks!");
+            //logger.info("expansion " + expansion + " has no more tasks!");
             return;
         }
 
+        //logger.debug("looking for leaf tasks in expansion " + expansion.getUID() + " of task " + expansion.getTask().getVerb());
         for (Enumeration subtasks = workflow.getTasks(); subtasks.hasMoreElements();) {
             Task task = (Task) subtasks.nextElement();
             //logger.debug("looking at task " + task.getVerb());
