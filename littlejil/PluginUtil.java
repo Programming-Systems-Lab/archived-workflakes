@@ -32,16 +32,16 @@ public class PluginUtil {
     }
 
     /**
-     * Used to keep track of timestamps and log them in an analyzable format
+     * Used to keep track of timestamps and log them in an analyzable format.
+     * It adds named timestamps to a row of values, formatting them in CSV (comma-separated values) format.
      */
     public static class Timing {
 
-        private static final Logger logger = Logger.getLogger(Timing.class);
+        private static Logger logger = Logger.getLogger(Timing.class);
 
-        private static ArrayList columns = new ArrayList();
         private static StringBuffer row = new StringBuffer();
-        private static int currentCol = 0;
-        private static boolean printColumns = false;
+        private static StringBuffer header = new StringBuffer();
+        private static StringBuffer lastHeader = new StringBuffer();
 
         public static void addTimestamp(String name) {
             addTimestamp(name, System.currentTimeMillis());
@@ -53,29 +53,14 @@ public class PluginUtil {
          */
         public static void addTimestamp(String name, long value) {
 
-            if (columns.size() == currentCol) {
-                columns.add(name);
-                printColumns = true;
-            } else if (!columns.get(currentCol).equals(name)) {
-
-                // if the name matches the next column, then assume the current column
-                // is no longer used, and remove it
-                if (columns.size() > currentCol + 1 && columns.get(currentCol + 1).equals(name)) {
-                    columns.remove(currentCol);
-                } else {
-                    // otherwise, we assume this is a new column and add it
-                    columns.add(currentCol, name);
-                }
-                printColumns = true;
-            }
-
-            if (row.length() > 0) {
+            if (header.length() > 0) {
+                header.append(",");
                 row.append(",");
             }
 
+            header.append(name);
             row.append(value);
 
-            currentCol++;
         }
 
         public static void newRow() {
@@ -84,28 +69,24 @@ public class PluginUtil {
                 return; // nothing to print
             }
 
-            if (printColumns) {
-                logger.debug("");
-                StringBuffer buf = new StringBuffer();
-                for (int i = 0; i < columns.size(); i++) {
-                    String s = (String) columns.get(i);
-                    if (i > 0) {
-                        buf.append(",");
-                    }
-                    buf.append(s);
-                }
-                logger.debug(buf.toString());
-                printColumns = false;
+            // print header row if new or if it has changed from the previous header
+            if (lastHeader == null || !header.toString().equals(lastHeader.toString())) {
+                logger.debug("\r\n" + header);
             }
 
             logger.debug(row.toString());
 
             row = new StringBuffer();
-            currentCol = 0;
+            lastHeader = header;
+            header = new StringBuffer();
+
         }
 
         // for testing only
         public static void main(String[] args) {
+
+            logger = Logger.getLogger("test");
+
             addTimestamp("foo");
             addTimestamp("bar");
             newRow();
@@ -125,7 +106,8 @@ public class PluginUtil {
             newRow();
 
             addTimestamp("foo");
-            addTimestamp("bar");
+            addTimestamp("bbb");
+            addTimestamp("ccc");
             newRow();
 
             addTimestamp("glob");
