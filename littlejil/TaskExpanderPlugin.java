@@ -66,7 +66,6 @@ public class TaskExpanderPlugin extends ComponentPlugin {
 
     public void setupSubscriptions() {
 
-        // now set up the subscription to get diagrams
         expansionsSubscription = (IncrementalSubscription) blackboard.subscribe(new ExpansionsPredicate());
         tasksSubscription = (IncrementalSubscription) blackboard.subscribe(new ExpandableTasksPredicate());
         littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
@@ -253,6 +252,7 @@ public class TaskExpanderPlugin extends ComponentPlugin {
     private void setInParams(Task task) {
         LittleJILStepsTable.Entry entry = stepsTable.getEntry(task);
         assert(entry != null);
+
         Collection paramBindings = entry.getParameterBindings();
 
         for (Iterator i = paramBindings.iterator(); i.hasNext();) {

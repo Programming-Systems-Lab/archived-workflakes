@@ -10,8 +10,7 @@ import org.cougaar.planning.ldm.asset.Asset;
 import org.cougaar.planning.ldm.plan.*;
 import org.cougaar.util.UnaryPredicate;
 
-import laser.littlejil.ParameterBinding;
-import laser.littlejil.ParameterDeclaration;
+import laser.littlejil.*;
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -33,11 +32,16 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
     private static BlackboardService blackboard;
     private static LittleJILStepsTable stepsTable; // used to keep a mapping of task->step
 
-    private IncrementalSubscription littleJILStepsTableSubscription;
+    private IncrementalSubscription stepsTableSubscription;
     private IncrementalSubscription allocationsSubscription;
+    private IncrementalSubscription resourceTableSubscription;
+
     private DomainService domainService;
 
     private Class assetClass;   // the asset class to match for this plugin instance
+
+    private LittleJILResourceTable resourceTable;
+
 
     /**
      * Subclasses should have a default constructor, where they should call super() with the class
@@ -58,19 +62,28 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
                 Allocation allocation = (Allocation) o;
                 Asset asset = allocation.getAsset();
                 return (asset != null && assetClass.isInstance(asset));
-            }
-            else {
+            } else {
                 return false;
             }
 
         }
     }
 
-    private static class LittleJILStepsTablePredicate implements UnaryPredicate {
+    private static class StepsTablePredicate implements UnaryPredicate {
+
         public boolean execute(Object o) {
             return (o instanceof LittleJILStepsTable);
         }
     }
+
+
+    private static class ResourceTablePredicate implements UnaryPredicate {
+
+        public boolean execute(Object o) {
+            return (o instanceof LittleJILResourceTable);
+        }
+    }
+
 
     /**
      * Used by the binding utility through reflection to set my DomainService
@@ -86,7 +99,8 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
 
         // now set up the subscription to get leaf tasks
         allocationsSubscription = (IncrementalSubscription) blackboard.subscribe(new AllocationPredicate());
-        littleJILStepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new LittleJILStepsTablePredicate());
+        stepsTableSubscription = (IncrementalSubscription) blackboard.subscribe(new StepsTablePredicate());
+        resourceTableSubscription = (IncrementalSubscription) blackboard.subscribe(new ResourceTablePredicate());
 
     }
 
@@ -98,8 +112,12 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
     public void execute() {
 
         // assumming that the LittleJILExpanderPlugin has already published a stepsTable
-        stepsTable = (LittleJILStepsTable) littleJILStepsTableSubscription.first();
+        stepsTable = (LittleJILStepsTable) stepsTableSubscription.first();
         assert(stepsTable != null);
+
+        // ditto
+        resourceTable = (LittleJILResourceTable) resourceTableSubscription.first();
+        assert(resourceTable != null);
 
         for (Enumeration allocations = allocationsSubscription.getAddedList(); allocations.hasMoreElements();) {
 
@@ -109,15 +127,44 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
             // first get all "in" parameters for this task
             Hashtable inParams = new Hashtable();
 
-            LittleJILStepsTable.Entry entry = stepsTable.getEntry(task);
-            assert(task != null);
+            Step step = stepsTable.getStep(task);
+            assert(step != null);
 
-            Collection paramBindings = entry.getParameterBindings();
-            for (Iterator i = paramBindings.iterator(); i.hasNext();) {
-                ParameterBinding binding = (ParameterBinding) i.next();
-                ParameterDeclaration declaration = binding.getDeclarationInChild();
-                if (declaration.getMode() != ParameterDeclaration.COPY_OUT) {
-                    inParams.put(declaration.getName(), declaration.getParameterValue());
+            StepInterface stepInterface = step.getStepInterface();
+            if (stepInterface != null) {
+                for (Enumeration params = stepInterface.getParameters(); params.hasMoreElements();) {
+                    ParameterDeclaration declaration = (ParameterDeclaration) params.nextElement();
+
+                    // if it's a resource, get it from the table and put in the hashtable
+                    if (declaration.getMode() == ParameterDeclaration.RESOURCE_ACQUISITION) {
+
+                        // first check if the param value is an Iterator. If it is, it means we are iterating
+                        // through a resource set, so just get the next value and add that to in params
+                        Object resource = null;
+                        if (declaration.getParameterValue() instanceof Iterator) {
+                            Iterator iterator = ((Iterator) declaration.getParameterValue());
+                            if (!iterator.hasNext()) {
+                                blackboard.publishAdd(new LittleJILException(task,
+                                        "NoMoreResourcesAvailable: " + declaration.getName()));
+                                continue;
+                            }
+
+                            resource = iterator.next();
+                        } else {
+                            resource = resourceTable.getResource(step.getDiagram(), declaration.getName());
+                            if (resource == null) {
+                                blackboard.publishAdd(new LittleJILException(task,
+                                        "ResourceUnavailableException: " + declaration.getName()));
+                                continue;
+                            }
+                        }
+
+                        logger.debug("adding resource to in params: " + declaration.getName() + "=" + resource);
+                        inParams.put(declaration.getName(), resource);
+                    }
+                    else if (declaration.getMode() != ParameterDeclaration.COPY_OUT) {
+                        inParams.put(declaration.getName(), declaration.getParameterValue());
+                    }
                 }
             }
 
@@ -200,7 +247,11 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
 
         try {
 
-            blackboard.openTransaction();   // because we not calling this method from Plugin.execute();
+            boolean shouldCloseTransaction = false;
+            if (!blackboard.getSubscriber().isMyTransaction()) {
+                blackboard.openTransaction();   // because we not calling this method from Plugin.execute();
+                shouldCloseTransaction = true;
+            }
 
             if (success) {
 
@@ -229,8 +280,7 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
                             }
                         }
                     }
-                }
-                else {
+                } else {
                     logger.warn("outParams table is null for task " + task.getVerb());
                 }
 
@@ -250,13 +300,14 @@ public abstract class AbstractTaskExecutorPlugin extends ComponentPlugin {
             blackboard.publishChange(allocation);
             blackboard.publishChange(task);
 
-            blackboard.closeTransaction();
+            if (shouldCloseTransaction) {
+                blackboard.closeTransaction();
+            }
 
         } catch (SubscriberException e) {
             logger.error("could not publish change: " + e);
         }
     }
-
 
 
 }
