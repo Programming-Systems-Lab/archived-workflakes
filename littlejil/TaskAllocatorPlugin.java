@@ -39,9 +39,10 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
 
         // create asset prototype
         factory.addPropertyGroupFactory(new PropertyGroupFactory());
-        ExecAgentAsset prototype = (ExecAgentAsset) factory.createPrototype(ExecAgentAsset.class, "ExecAgentProto");
+        ExecClassAgentAsset prototype = (ExecClassAgentAsset)
+                factory.createPrototype(ExecClassAgentAsset.class, "ExecClassAgentProto");
 
-        prototypeRegistry.cachePrototype("ExecAgent", prototype);
+        prototypeRegistry.cachePrototype("ExecClassAgent", prototype);
 
     }
 
@@ -72,10 +73,12 @@ public class TaskAllocatorPlugin extends ComponentPlugin {
 
             // TODO: use a real execution agent
             // TESTING
-            ExecAgentAsset asset = (ExecAgentAsset) factory.createInstance("ExecAgent");
+            ExecClassAgentAsset asset = (ExecClassAgentAsset) factory.createInstance("ExecClassAgent");
             NewExecutorPG executorPG = (NewExecutorPG) factory.createPropertyGroup("ExecutorPG");
-            executorPG.setJunction("psl.workflakes.littlejil.TaskExecutorInternalPlugin$DummyExecutableTask");
+            NewClassPG classPG = (NewClassPG) factory.createPropertyGroup("ClassPG");
+            classPG.setClassName("psl.workflakes.littlejil.TaskExecutorInternalPlugin$DummyExecutableTask");
             asset.setExecutorPG(executorPG);
+            asset.setClassPG(classPG);
 
             Allocation allocation = factory.createAllocation(task.getPlan(), task, asset, null, Role.ASSIGNED);
 

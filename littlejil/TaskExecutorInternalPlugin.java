@@ -10,11 +10,13 @@ import org.cougaar.core.plugin.ComponentPlugin;
 import org.cougaar.core.service.BlackboardService;
 import org.cougaar.core.service.DomainService;
 import org.cougaar.planning.ldm.plan.*;
+import org.cougaar.planning.ldm.asset.Asset;
 import org.cougaar.util.UnaryPredicate;
 
 import java.util.*;
 
 import psl.workflakes.littlejil.assets.ExecAgentAsset;
+import psl.workflakes.littlejil.assets.ExecClassAgentAsset;
 
 /**
  * This plugin executes tasks by invoking a method on a class.
@@ -47,9 +49,20 @@ public class TaskExecutorInternalPlugin extends ComponentPlugin {
         factory = this.domainService.getFactory();
     }
 
+    /**
+     * Get allocations that have ExecClassAgent assets only
+     */
     private class AllocationPredicate implements UnaryPredicate {
         public boolean execute(Object o) {
-            return (o instanceof Allocation);
+            if (o instanceof Allocation) {
+                Allocation allocation = (Allocation) o;
+                Asset asset = allocation.getAsset();
+                return (asset != null && asset instanceof ExecClassAgentAsset);
+            }
+            else {
+                return false;
+            }
+
         }
     }
 
@@ -172,8 +185,8 @@ public class TaskExecutorInternalPlugin extends ComponentPlugin {
             Hashtable outParams = new Hashtable();
             try {
 
-                ExecAgentAsset execAgent = (ExecAgentAsset) allocation.getAsset();
-                String className = execAgent.getExecutorPG().getJunction();
+                ExecClassAgentAsset execAgent = (ExecClassAgentAsset) allocation.getAsset();
+                String className = execAgent.getClassPG().getClassName();
                 Class execClass = Class.forName(className);
                 ExecutableTask executable = (ExecutableTask) execClass.newInstance(); //new DummyExecutableTask();
                 executable.execute(task.getVerb().toString(), inParams, outParams);

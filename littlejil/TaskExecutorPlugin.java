@@ -15,6 +15,8 @@ import org.cougaar.util.UnaryPredicate;
 import psl.worklets.WVM;
 import psl.worklets.WorkletJunction;
 import psl.worklets.Worklet;
+import psl.workflakes.littlejil.assets.ExecClassAgentAsset;
+import psl.workflakes.littlejil.assets.ExecWorkletAgentAsset;
 
 /**
  * This plugin simulates executing a task.
@@ -84,9 +86,19 @@ public class TaskExecutorPlugin extends ComponentPlugin {
 
     }
 
+    /**
+     * Get allocations that have ExecWorkletAgentAsset assets only
+     */
     private class AllocationPredicate implements UnaryPredicate {
         public boolean execute(Object o) {
-            return (o instanceof Allocation);
+            if (o instanceof Allocation) {
+                Allocation allocation = (Allocation) o;
+                Asset asset = allocation.getAsset();
+                return (asset != null && asset instanceof ExecWorkletAgentAsset);
+            }
+            else {
+                return false;
+            }
         }
     }
 
@@ -120,6 +132,8 @@ public class TaskExecutorPlugin extends ComponentPlugin {
                 // create a worklet junction that will "perform this task"
                 ReturnJunction returnJunction = new ReturnJunction(allocation.getUID().toString(),wvmHostname, RMINAME, WVM_PORT);
                 Worklet worklet = new Worklet(returnJunction);
+
+                // TODO: use information in asset to create worklet
 
                 worklet.addJunction(new TaskMonitorJunction(allocation.getTask().getVerb().toString(),
                         returnJunction, monitorHostname, MONITOR_RMINAME, MONITOR_PORT));
